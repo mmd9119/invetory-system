@@ -592,3 +592,43 @@ supabase.auth.onAuthStateChange(async (_event, session) => {
 });
 
 checkSession();
+// اصلاح قطعی جابه‌جایی بین صفحات منو
+document.addEventListener("click", function (event) {
+  const button = event.target.closest(".navbtn");
+
+  if (!button) return;
+
+  event.preventDefault();
+
+  const pageId = button.dataset.page;
+  const target = document.getElementById(pageId);
+
+  if (!target) {
+    console.error("صفحه پیدا نشد:", pageId);
+    return;
+  }
+
+  document.querySelectorAll(".content .page").forEach(page => {
+    page.classList.add("hidden");
+  });
+
+  target.classList.remove("hidden");
+
+  document.querySelectorAll(".navbtn").forEach(item => {
+    item.classList.remove("active");
+  });
+
+  button.classList.add("active");
+
+  if (pageId === "dashboardPage") {
+    renderDashboard();
+  }
+
+  if (pageId === "salesPage") {
+    renderSales();
+  }
+
+  if (pageId === "archivePage") {
+    render();
+  }
+}, true);
