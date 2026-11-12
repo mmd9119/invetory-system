@@ -683,3 +683,11 @@ fillSelect("category", CATEGORIES);
 fillSelect("brand", BRANDS);
 
 initializeApp();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js")
+      .then(() => console.log("Offline mode enabled"))
+      .catch((error) => console.error("SW error:", error));
+  });
+}
