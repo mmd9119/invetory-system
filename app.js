@@ -121,3 +121,18 @@ function renderSales() {
     `).join("");
   }
 }
+
+document.addEventListener("click", function (event) {
+  const button = event.target.closest("#filterSales");
+
+  if (!button) return;
+
+  event.preventDefault();
+
+  try {
+    renderSales();
+  } catch (error) {
+    console.error("خطای فیلتر سابقه فروش:", error);
+    alert("خطا در فیلتر سابقه فروش. کنسول را بررسی کنید.");
+  }
+});
