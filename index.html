@@ -1,0 +1,233 @@
+HTML
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مدیریت موجودی فروشگاه</title>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root{
+ --bg:#f5f2e9;--card:#fffdf8;--text:#302e27;
+ --muted:#898475;--yellow:#ad8127;--border:#e9e3d5;
+ --green:#607b58;--blue:#58768c;--purple:#88718e;
+ --red:#b66d62;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Vazirmatn,sans-serif}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer;border:0}
+.container{width:min(1100px,94%);margin:28px auto}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;gap:12px}
+h1{font-size:23px;margin:0}
+.subtitle{font-size:12px;color:var(--muted);margin-top:5px}
+.online{background:#e1ebdc;color:#52734c;padding:7px 12px;border-radius:30px;font-size:12px}
+.top-actions{display:flex;align-items:center;gap:8px}
+.rate-card{background:#eee2c2;border:1px solid #e4d5a9;border-radius:20px;padding:18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:25px}
+.rate-card label{color:#765e2b;font-size:13px}
+.rate-controls{display:flex;gap:8px}
+input,select,textarea{width:100%;border:1px solid var(--border);border-radius:12px;padding:12px;background:#fffefa;outline:none;color:var(--text);transition:.2s}
+input:focus,select:focus,textarea:focus{border-color:var(--yellow);box-shadow:0 0 0 3px #ad81271a}
+#rate{width:155px}
+.btn{background:var(--yellow);color:white;border-radius:12px;padding:11px 17px;transition:.2s}
+.btn:hover{filter:brightness(.94);transform:translateY(-2px)}
+.soft{background:#eee9db;color:#655638;border-radius:12px;padding:10px 14px}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:15px}
+.section-head h2{font-size:18px;margin:0}
+.search-row{display:grid;grid-template-columns:1fr 190px;gap:10px;margin-bottom:18px}
+#products{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+.product{background:var(--card);border:1px solid var(--border);border-radius:18px;overflow:hidden;animation:cardIn .35s ease both;transition:.22s}
+.product:hover{transform:translateY(-4px);box-shadow:0 12px 25px #55451b12}
+.product img{width:100%;height:155px;object-fit:contain;background:#f0ecdf;padding:10px}
+.product .info{padding:13px}
+.product h3{font-size:15px;margin:0 0 7px}
+.product p{font-size:12px;color:var(--muted);margin:5px 0}
+.product .price{color:#806328;font-weight:800;font-size:14px}
+.stock{display:inline-block;border-radius:20px;background:#f0e7d0;color:#856b32;padding:4px 9px;font-size:11px}
+.product-actions{display:flex;gap:7px;margin-top:12px}
+.product-actions button{flex:1;padding:9px 5px;border-radius:10px;font-size:12px}
+.sell-btn{background:#e3eddf;color:#4e7047}
+.edit-btn{background:#e4eaf0;color:#4c6d83}
+#login{width:min(400px,92%);margin:80px auto;background:var(--card);border:1px solid var(--border);border-radius:22px;padding:25px}
+#login h2{margin-top:0}
+#login input{margin-bottom:12px}
+#loginBtn{width:100%}
+#app{display:none}
+#message,#formMessage{font-size:12px;color:#9b6335;margin-top:10px}
+#sync{font-size:12px;color:var(--muted);margin-bottom:12px}
+
+/* پنجره متحرک محصول */
+.modal{position:fixed;inset:0;z-index:1000;display:flex;align-items:flex-end;justify-content:center;background:#24211680;opacity:0;visibility:hidden;transition:.25s;padding:12px}
+.modal.open{opacity:1;visibility:visible}
+.modal-panel{width:min(650px,100%);max-height:91vh;overflow-y:auto;background:var(--card);border-radius:24px 24px 16px 16px;padding:22px;transform:translateY(55px);transition:transform .32s cubic-bezier(.2,.8,.2,1)}
+.modal.open .modal-panel{transform:translateY(0)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.modal-head h2{margin:0;font-size:18px}
+.close-btn{width:36px;height:36px;border-radius:50%;background:#eee9dc;color:#625a48;font-size:20px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12px;color:var(--muted)}
+.full{grid-column:1/-1}
+.form-actions{display:flex;gap:9px;margin-top:17px}
+.form-actions button{flex:1}
+@keyframes cardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:650px){
+ .container{margin:18px auto}
+ h1{font-size:19px}
+ #products{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+ .product img{height:95px}
+ .product .info{padding:8px}
+ .product h3{font-size:12px}
+ .product p{font-size:10px}
+ .product .price{font-size:11px}
+ .product-actions{flex-direction:column;gap:5px}
+ .product-actions button{font-size:10px;padding:7px 3px}
+ .search-row{grid-template-columns:1fr}
+ .rate-card{padding:14px}
+ .rate-controls{width:100%}
+ #rate{flex:1;min-width:0}
+ .modal-panel{padding:17px}
+}
+@media(max-width:360px){.form-grid{grid-template-columns:1fr}.full{grid-column:auto}}
+</style>
+</head>
+<body>
+
+<section id="login">
+<h2>ورود به مدیریت موجودی</h2>
+<input id="email" type="email" placeholder="ایمیل">
+<input id="password" type="password" placeholder="رمز عبور">
+<button id="loginBtn" class="btn">ورود</button>
+<div id="message"></div>
+</section>
+
+<main id="app">
+<div class="container">
+<header class="top">
+ <div>
+  <h1>مدیریت موجودی</h1>
+  <div class="subtitle">مدیریت ساده و سریع محصولات فروشگاه</div>
+ </div>
+ <div class="top-actions">
+  <span class="online">● آنلاین</span>
+  <button id="logout" class="soft">خروج</button>
+ </div>
+</header>
+
+<section class="rate-card">
+ <div>
+  <label for="rate">نرخ روز درهم</label>
+  <div style="font-size:12px;color:#8a7548;margin-top:4px">محاسبه قیمت محصولات درهمی</div>
+ </div>
+ <div class="rate-controls">
+  <input id="rate" type="number" placeholder="نرخ درهم">
+  <button id="saveRate" class="btn">ثبت نرخ</button>
+ </div>
+</section>
+
+<div class="section-head">
+ <h2>محصولات فروشگاه</h2>
+ <button id="addProductBtn" class="btn">＋ افزودن محصول</button>
+</div>
+
+<div class="search-row">
+ <input id="search" type="search" placeholder="جست‌وجوی نام یا مدل محصول...">
+</div>
+
+<div id="sync"></div>
+<div id="products"></div>
+</div>
+</main>
+
+<div id="productModal" class="modal">
+<div class="modal-panel">
+ <div class="modal-head">
+  <h2 id="formTitle">افزودن محصول جدید</h2>
+  <button id="closeProductModal" class="close-btn" type="button">×</button>
+ </div>
+
+ <form id="productForm">
+ <input id="pid" type="hidden">
+ <div class="form-grid">
+
+  <div class="field">
+   <label for="name">نام محصول</label>
+   <input id="name" required placeholder="نام محصول">
+  </div>
+
+  <div class="field">
+   <label for="category">دسته‌بندی</label>
+   <select id="category"></select>
+  </div>
+
+  <div class="field">
+   <label for="brand">برند</label>
+   <select id="brand"></select>
+  </div>
+
+  <div class="field">
+   <label for="tag">مدل یا تگ</label>
+   <input id="tag" placeholder="مدل محصول">
+  </div>
+
+  <div class="field">
+   <label for="purchaseType">نوع خرید</label>
+   <select id="purchaseType">
+    <option value="toman">تومانی</option>
+    <option value="dirham">درهمی</option>
+   </select>
+  </div>
+
+  <div class="field">
+   <label for="buyPrice">قیمت خرید</label>
+   <input id="buyPrice" type="number" required placeholder="قیمت خرید">
+  </div>
+
+  <div class="field">
+   <label for="freight">کرایه</label>
+   <input id="freight" type="number" value="0">
+  </div>
+
+  <div class="field">
+   <label for="profitType">نوع سود</label>
+   <select id="profitType">
+    <option value="fixed">مبلغ ثابت</option>
+    <option value="percent">درصدی</option>
+   </select>
+  </div>
+
+  <div class="field">
+   <label for="profitValue">مقدار سود</label>
+   <input id="profitValue" type="number" placeholder="مقدار سود">
+  </div>
+
+  <div class="field">
+   <label for="quantity">تعداد موجودی</label>
+   <input id="quantity" type="number" min="0" value="1">
+  </div>
+
+  <div class="field full">
+   <label for="photo">عکس محصول</label>
+   <input id="photo" type="file" accept="image/*">
+  </div>
+
+  <div class="field full">
+   <label for="description">توضیحات</label>
+   <textarea id="description" rows="3" placeholder="توضیحات محصول..."></textarea>
+  </div>
+ </div>
+
+ <div class="form-actions">
+  <button id="saveProduct" type="button" class="btn">ذخیره محصول</button>
+  <button id="cancelEdit" type="button" class="soft">انصراف</button>
+ </div>
+ <div id="formMessage"></div>
+ </form>
+</div>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

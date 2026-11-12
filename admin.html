@@ -1,0 +1,267 @@
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>پنل مدیریت آموزش</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap');
+*{box-sizing:border-box}
+body{margin:0;background:#f1f5f9;font-family:Vazirmatn,Tahoma;color:#172b40}
+header{background:#123b63;color:white;padding:18px 5%;display:flex;justify-content:space-between;align-items:center}
+main{max-width:1100px;margin:25px auto;padding:0 15px}
+.card{background:white;border-radius:16px;padding:20px;margin-bottom:18px;box-shadow:0 4px 18px #123b6310}
+h2{font-size:18px;margin:0 0 16px}
+input,select,textarea{width:100%;padding:11px;border:1px solid #dce4ed;border-radius:10px;font:inherit;margin:5px 0 12px}
+label{font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+button{border:0;border-radius:10px;padding:11px 17px;font:inherit;cursor:pointer}
+.primary{background:#19b7ad;color:#063c3a}
+.dark{background:#123b63;color:white}
+.red{background:#ffe5e5;color:#a22}
+.hidden{display:none}
+.msg{margin-top:12px;font-size:13px;color:#087c70}
+table{width:100%;border-collapse:collapse}
+td,th{padding:10px;border-bottom:1px solid #eee;text-align:right;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+<strong>پنل مدیریت سایت آموزشی</strong>
+<button class="dark" onclick="location.href='index.html'">مشاهده سایت</button>
+</header>
+<main>
+
+<section id="loginBox" class="card">
+<h2>ورود مدیر</h2>
+<label>ایمیل</label>
+<input id="email" type="email">
+<label>رمز عبور</label>
+<input id="password" type="password">
+<button class="primary" id="login">ورود به مدیریت</button>
+<p id="loginMsg" class="msg"></p>
+</section>
+
+<div id="dashboard" class="hidden">
+
+<section class="card">
+<h2>🎨 طراحی و شخصی‌سازی سایت</h2>
+<div class="grid">
+<div><label>نام سایت</label><input id="siteTitle"></div>
+<div><label>عنوان صفحه اصلی</label><input id="heroTitle"></div>
+<div><label>توضیحات صفحه اصلی</label><input id="heroText"></div>
+<div><label>رنگ اصلی</label><input id="primaryColor" type="color" value="#123b63"></div>
+<div><label>رنگ تأکیدی</label><input id="accentColor" type="color" value="#19b7ad"></div>
+<div><label>رنگ پس‌زمینه</label><input id="bgColor" type="color" value="#f1f5f9"></div>
+<div><label>بنر صفحه اصلی</label><input id="banner" type="file" accept="image/*"></div>
+</div>
+<button class="primary" id="saveDesign">ذخیره طراحی سایت</button>
+<p id="designMsg" class="msg"></p>
+</section>
+
+<section class="card">
+<h2>📚 افزودن کتاب آموزشی</h2>
+<div class="grid">
+<div><label>نام کتاب</label><input id="bookTitle"></div>
+<div><label>پایه تحصیلی</label>
+<select id="grade">
+<option value="">انتخاب پایه</option>
+</select></div>
+<div><label>نام درس</label><input id="subject"></div>
+<div><label>فایل PDF</label><input id="pdf" type="file" accept=".pdf,application/pdf"></div>
+</div>
+<button class="primary" id="addBook">آپلود و ثبت کتاب</button>
+<p id="bookMsg" class="msg"></p>
+</section>
+
+<section class="card">
+<h2>مدیریت کتاب‌ها</h2>
+<div style="overflow:auto">
+<table>
+<thead><tr><th>کتاب</th><th>پایه</th><th>درس</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+<tbody id="books"></tbody>
+</table>
+</div>
+</section>
+
+<button class="red" id="logout">خروج از مدیریت</button>
+</div>
+</main>
+
+<script type="module">
+import * as cfg from './config.js';
+
+const db=cfg.supabase||cfg.client||cfg.default;
+const ADMIN_ID='b60c1907-046f-4715-9a07-bfb3aa33b8d0';
+const $=id=>document.getElementById(id);
+
+for(let i=1;i<=12;i++){
+ $('grade').add(new Option('پایه '+i,i));
+}
+
+function msg(id,text){$(id).textContent=text}
+function show(on){
+ $('loginBox').classList.toggle('hidden',on);
+ $('dashboard').classList.toggle('hidden',!on);
+}
+
+async function checkAdmin(user){
+ if(!user||user.id!==ADMIN_ID)return false;
+ const {data,error}=await db.from('admins')
+ .select('user_id').eq('user_id',user.id).maybeSingle();
+ return !!data&&!error;
+}
+
+async function load(){
+ const {data}=await db.from('site_settings')
+ .select('*').eq('id',1).maybeSingle();
+
+ if(data){
+ $('siteTitle').value=data.site_title||'';
+ $('heroTitle').value=data.hero_title||'';
+ $('heroText').value=data.hero_text||'';
+ $('primaryColor').value=data.primary_color||'#123b63';
+ $('accentColor').value=data.accent_color||'#19b7ad';
+ $('bgColor').value=data.background_color||'#f1f5f9';
+ }
+ await loadBooks();
+}
+
+$('login').onclick=async()=>{
+ if(!db){msg('loginMsg','فایل config.js اتصال معتبری ندارد.');return}
+ const {data,error}=await db.auth.signInWithPassword({
+ email:$('email').value.trim(),
+ password:$('password').value
+ });
+ if(error){msg('loginMsg',error.message);return}
+ if(!await checkAdmin(data.user)){
+ await db.auth.signOut();
+ msg('loginMsg','این حساب دسترسی مدیریت ندارد.');
+ return;
+ }
+ show(true);
+ await load();
+};
+
+$('saveDesign').onclick=async()=>{
+ const row={
+ id:1,
+ site_title:$('siteTitle').value,
+ hero_title:$('heroTitle').value,
+ hero_text:$('heroText').value,
+ primary_color:$('primaryColor').value,
+ accent_color:$('accentColor').value,
+ background_color:$('bgColor').value
+ };
+ const file=$('banner').files[0];
+ if(file){
+ const path='banners/'+Date.now()+'-'+file.name;
+ const {error}=await db.storage.from('school-files')
+ .upload(path,file,{upsert:true});
+ if(error){msg('designMsg',error.message);return}
+ const {data}=db.storage.from('school-files').getPublicUrl(path);
+ row.banner_url=data.publicUrl;
+ }
+ const {error}=await db.from('site_settings').upsert(row);
+ msg('designMsg',error?error.message:'طراحی سایت ذخیره شد.');
+};
+
+$('addBook').onclick=async()=>{
+ const title=$('bookTitle').value.trim();
+ const grade=$('grade').value;
+ const subject=$('subject').value.trim();
+ const file=$('pdf').files[0];
+
+ if(!title||!grade||!file){
+ msg('bookMsg','نام کتاب، پایه و فایل PDF را وارد کن.');
+ return;
+ }
+ const path='books/'+Date.now()+'-'+file.name;
+ const {error:uploadError}=await db.storage
+ .from('school-files').upload(path,file);
+
+ if(uploadError){msg('bookMsg',uploadError.message);return}
+
+ const {data}=db.storage.from('school-files').getPublicUrl(path);
+
+ const {error}=await db.from('books').insert({
+ title,grade:Number(grade),subject,
+ file_url:data.publicUrl,
+ storage_path:path,
+ is_active:true
+ });
+
+ if(error){msg('bookMsg',error.message);return}
+ msg('bookMsg','کتاب با موفقیت اضافه شد.');
+ $('bookTitle').value='';
+ $('subject').value='';
+ $('pdf').value='';
+ await loadBooks();
+};
+
+async function loadBooks(){
+ const {data,error}=await db.from('books')
+ .select('*').order('created_at',{ascending:false});
+
+ if(error){msg('bookMsg',error.message);return}
+
+ $('books').innerHTML=(data||[]).map(b=>`
+ <tr>
+ <td>${safe(b.title)}</td>
+ <td>${safe(b.grade)}</td>
+ <td>${safe(b.subject||'-')}</td>
+ <td>${b.is_active?'فعال':'غیرفعال'}</td>
+ <td>
+ <button class="dark" data-toggle="${b.id}" data-state="${b.is_active}">
+ تغییر وضعیت
+ </button>
+ <button class="red" data-delete="${b.id}">حذف</button>
+ </td>
+ </tr>`).join('');
+
+ document.querySelectorAll('[data-toggle]').forEach(btn=>{
+ btn.onclick=async()=>{
+ const {error}=await db.from('books')
+ .update({is_active:btn.dataset.state!=='true'})
+ .eq('id',btn.dataset.toggle);
+ if(error)alert(error.message);
+ await loadBooks();
+ };
+ });
+
+ document.querySelectorAll('[data-delete]').forEach(btn=>{
+ btn.onclick=async()=>{
+ if(!confirm('کتاب حذف شود؟'))return;
+ const {error}=await db.from('books')
+ .delete().eq('id',btn.dataset.delete);
+ if(error)alert(error.message);
+ await loadBooks();
+ };
+ });
+}
+
+function safe(v){
+ return String(v??'').replace(/[&<>"']/g,c=>({
+ '&':'&amp;','<':'&lt;','>':'&gt;',
+ '"':'&quot;',"'":'&#39;'
+ }[c]));
+}
+
+$('logout').onclick=async()=>{
+ await db.auth.signOut();
+ show(false);
+};
+
+if(db){
+ const {data:{session}}=await db.auth.getSession();
+ if(session&&await checkAdmin(session.user)){
+ show(true);
+ await load();
+ }
+}else{
+ msg('loginMsg','اتصال Supabase در config.js پیدا نشد.');
+}
+</script>
+</body>
+</html>

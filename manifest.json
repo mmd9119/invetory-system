@@ -1,0 +1,11 @@
+
+{
+  "name": "مدیریت کالای مغازه",
+  "short_name": "مدیریت کالا",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f3f6fa",
+  "theme_color": "#14243b"
+}
