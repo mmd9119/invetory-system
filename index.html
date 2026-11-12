@@ -1,264 +1,258 @@
-
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#101b32">
-<title>مدیریت فروشگاه</title>
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#651515">
+<title>مدیریت موجودی | K</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap');
+
 :root{
- --bg:#f3f6fb;--white:#fff;--navy:#101b32;--blue:#2878f0;
- --text:#17233b;--muted:#7d899d;--line:#e6ebf3;
- --green:#15966a;--red:#d84c5b;--amber:#b7791f;
+ --red:#741919;--red2:#4b1014;--red3:#a52626;
+ --gold:#e6b84d;--gold2:#ffdc83;--dark:#211c1d;
+ --panel:#302526;--text:#fff4df;--muted:#c9b8a5;
+ --line:rgba(230,184,77,.35);--shadow:0 12px 35px #17090b80;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:Vazirmatn,sans-serif}
-button,input,select,textarea{font:inherit}
-button{cursor:pointer;border:0}
-button:disabled{opacity:.5;cursor:not-allowed}
-#login{width:min(410px,92%);margin:9vh auto;background:white;border:1px solid var(--line);border-radius:20px;padding:26px}
-#login h2{font-size:20px}
-#login p{font-size:12px;color:var(--muted)}
-#login input{margin:6px 0}
-#loginBtn{width:100%;margin-top:10px}
-#app{display:none}
-.shell{max-width:1440px;margin:auto;padding:24px}
-.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;gap:12px}
-.brand{display:flex;align-items:center;gap:12px}
-.brand-mark{width:45px;height:45px;border-radius:14px;background:linear-gradient(145deg,#3389ff,#1555c5);display:grid;place-items:center;color:white;font-size:22px;font-weight:800}
-.brand h1{font-size:19px;margin:0}
-.brand p{font-size:11px;color:var(--muted);margin:3px 0}
-.top-actions{display:flex;align-items:center;gap:9px}
-.status{font-size:11px;color:var(--green);background:#e8f7f1;padding:8px 12px;border-radius:30px}
-.btn{background:var(--blue);color:white;border-radius:11px;padding:11px 16px;font-weight:600}
-.btn.secondary{background:#edf2fa;color:#40516c}
-.btn.danger{background:#fff0f1;color:var(--red)}
-.btn.small{padding:8px 11px;font-size:12px}
-.layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:20px}
-.sidebar{background:var(--navy);border-radius:20px;padding:15px;height:max-content;position:sticky;top:18px;color:white}
-.side-label{color:#8292ad;font-size:10px;padding:8px 12px}
-.nav-btn{width:100%;display:flex;align-items:center;gap:10px;padding:12px;border-radius:11px;background:transparent;color:#c5d0e1;text-align:right;margin:3px 0;font-size:13px}
-.nav-btn.active{background:#2878f0;color:white}
-.main{min-width:0}
-.page{display:none}
-.page.active{display:block}
-.page-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
-.page-title h2{font-size:20px;margin:0}
-.page-title p{color:var(--muted);font-size:12px;margin:4px 0}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:18px}
-.stat,.panel{background:white;border:1px solid var(--line);border-radius:16px;padding:17px;box-shadow:0 12px 35px #1a2d4a0b}
-.stat-head{display:flex;justify-content:space-between;color:var(--muted);font-size:12px}
-.stat strong{display:block;font-size:21px;margin-top:10px}
-.stat small{color:var(--muted);font-size:10px}
-.stat-icon{width:34px;height:34px;border-radius:11px;background:#eaf2ff;color:var(--blue);display:grid;place-items:center}
-.panel{margin-bottom:16px}
-.panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
-.panel-head h3{font-size:14px;margin:0}
-.rate-panel{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
-.rate-panel h3{margin:0;font-size:14px}
-.rate-panel p{margin:4px 0 0;font-size:11px;color:var(--muted)}
-.rate-control{display:flex;gap:8px;width:min(370px,100%)}
-input,select,textarea{width:100%;border:1px solid var(--line);background:#fbfcfe;color:var(--text);border-radius:10px;padding:11px 12px;outline:none;min-width:0}
-input:focus,select:focus,textarea:focus{border-color:#78a9f5;box-shadow:0 0 0 3px #2878f014}
-.toolbar,.filters{display:flex;gap:9px;align-items:center;margin-bottom:15px;flex-wrap:wrap}
-.toolbar input{flex:1;min-width:180px}
-.toolbar select{width:auto;min-width:135px}
-.product-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.product{background:white;border:1px solid var(--line);border-radius:15px;overflow:hidden;min-width:0}
-.product-image{height:145px;background:#f1f5fb;display:grid;place-items:center;overflow:hidden}
-.product-image img{width:100%;height:100%;object-fit:contain;padding:10px}
-.no-image{color:#9aa8bc;font-size:34px}
-.product-info{padding:12px}
-.product h3{font-size:13px;margin:0 0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.product-meta{font-size:10px;color:var(--muted);line-height:1.9}
-.product-price{font-size:14px;font-weight:800;color:#175fc7;margin:7px 0}
-.stock{display:inline-block;padding:4px 8px;border-radius:20px;font-size:10px;background:#e8f7f1;color:var(--green)}
-.stock.low{background:#fff6e5;color:var(--amber)}
-.stock.zero{background:#fff0f1;color:var(--red)}
-.product-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:11px}
-.product-actions button{font-size:10px;padding:8px 4px;border-radius:8px}
-.sell-btn{background:#e8f7f1;color:var(--green)}
-.edit-btn{background:#eaf2ff;color:#2368c8}
-.archive-btn{grid-column:1/-1;background:#f0f2f6;color:#66748a}
-.table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;min-width:650px}
-th,td{text-align:right;padding:12px 10px;border-bottom:1px solid var(--line);font-size:12px;white-space:nowrap}
-th{color:var(--muted);font-weight:600;background:#fafbfd}
-.table-action{padding:7px 10px;border-radius:8px;font-size:11px;background:#fff0f1;color:var(--red)}
-.summary-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
-.summary-box{background:#f6f9fe;border:1px solid var(--line);padding:13px;border-radius:12px}
-.summary-box span{font-size:10px;color:var(--muted)}
-.summary-box strong{display:block;font-size:17px;margin-top:5px}
-.field{min-width:150px;flex:1}
-.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:6px}
-.bar-list{display:grid;gap:12px}
-.bar-row{display:grid;grid-template-columns:minmax(90px,160px) 1fr auto;gap:10px;align-items:center;font-size:11px}
-.bar-track{height:9px;background:#edf1f7;border-radius:20px;overflow:hidden}
-.bar-fill{height:100%;background:linear-gradient(90deg,#2d8bff,#145ac7);border-radius:20px}
-.empty{padding:35px 12px;text-align:center;color:var(--muted);font-size:13px}
-.modal{position:fixed;inset:0;background:#0b1427a8;z-index:50;display:none;align-items:center;justify-content:center;padding:15px}
-.modal.open{display:flex}
-.modal-panel{background:white;border-radius:19px;width:min(700px,100%);max-height:92vh;overflow:auto;padding:21px}
-.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:17px}
-.modal-head h2{font-size:17px;margin:0}
-.close{width:34px;height:34px;border-radius:10px;background:#eff2f7;color:#526078;font-size:20px}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.field.full{grid-column:1/-1}
-.form-actions{display:flex;gap:9px;margin-top:17px}
-.form-actions button{flex:1}
-#formMessage,#message{font-size:12px;margin-top:10px;color:var(--red)}
-.hint{font-size:10px;color:var(--muted);margin-top:4px}
-.sync{font-size:11px;color:var(--muted);margin:0 0 12px}
-@media(max-width:1100px){.product-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.stats{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:760px){
- .shell{padding:14px}
- .layout{grid-template-columns:1fr;gap:13px}
- .sidebar{position:static;display:flex;overflow-x:auto;padding:7px;border-radius:13px;gap:3px}
- .side-label{display:none}
- .nav-btn{white-space:nowrap;width:auto;flex:1;justify-content:center;padding:10px;font-size:11px}
- .topbar{margin-bottom:14px}
- .brand h1{font-size:16px}
- .status{display:none}
- .page-title h2{font-size:18px}
- .product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
- .product-image{height:115px}
- .product-info{padding:9px}
- .product h3{font-size:12px}
- .product-price{font-size:12px}
- .panel{padding:13px}
- .summary-box{padding:9px}
- .summary-box strong{font-size:13px}
- .bar-row{grid-template-columns:85px 1fr auto}
+body{
+ margin:0;font-family:Vazirmatn,sans-serif;color:var(--text);
+ background:radial-gradient(ellipse at top,#792020 0,#451216 48%,#211719 100%);
+ min-height:100vh
 }
-@media(min-width:520px) and (max-width:760px){.product-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:390px){.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.stats{gap:8px}.stat{padding:12px}.stat strong{font-size:17px}}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.top{
+ padding:22px 5%;display:flex;align-items:center;justify-content:space-between;
+ border-bottom:1px solid var(--line);
+ background:linear-gradient(120deg,#4b1014,#781b1b,#321719);
+ box-shadow:var(--shadow);gap:18px;flex-wrap:wrap
+}
+.brand{display:flex;align-items:center;gap:16px}
+.logo{
+ width:66px;height:66px;border-radius:50%;display:grid;place-items:center;
+ background:radial-gradient(circle,#8b1717,#4b080b);
+ color:#080808;font-family:Georgia,serif;font-size:48px;font-weight:900;
+ -webkit-text-stroke:1px #e9bd55;
+ border:4px double var(--gold2);
+ box-shadow:0 0 0 3px #8b5b16,0 0 25px #e6b84d65;
+ animation:logoGlow 3s ease-in-out infinite alternate
+}
+.brand h1{font-size:23px;margin:0;color:var(--gold2)}
+.brand p{margin:4px 0 0;color:#e8cfa4;font-size:13px}
+.top-actions{display:flex;gap:10px;align-items:center}
+.btn{
+ border:1px solid var(--gold);border-radius:13px;padding:11px 18px;
+ color:#211719;background:linear-gradient(135deg,#ffdf86,#d69a27);
+ font-weight:800;transition:.25s;box-shadow:0 5px 15px #0004
+}
+.btn:hover{transform:translateY(-3px);filter:brightness(1.1);box-shadow:0 8px 22px #e6b84d40}
+.btn.red{background:linear-gradient(135deg,#a92828,#651313);color:white}
+.btn.dark{background:#292122;color:var(--gold2)}
+.btn.small{padding:7px 12px;font-size:12px}
+main{max-width:1450px;margin:auto;padding:25px 4% 60px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat,.panel,.product,.modal-card{
+ background:linear-gradient(145deg,#382829,#251e20);
+ border:1px solid var(--line);border-radius:19px;box-shadow:var(--shadow)
+}
+.stat{padding:18px;animation:rise .5s both}
+.stat span{color:var(--muted);font-size:13px}
+.stat strong{display:block;color:var(--gold2);font-size:25px;margin-top:7px}
+.ratebar{padding:16px 19px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px}
+.ratebar label{color:var(--gold2);font-weight:700}
+input,select,textarea{
+ width:100%;padding:12px 13px;border-radius:11px;border:1px solid #8c6a4d;
+ background:#211b1c;color:white;outline:none;min-width:0
+}
+input:focus,select:focus,textarea:focus{border-color:var(--gold2);box-shadow:0 0 0 3px #e6b84d20}
+.ratebar input{width:160px}
+.tabs{display:flex;gap:9px;flex-wrap:wrap;margin:22px 0}
+.tab{background:#2c2223;color:#e9d6b6;border:1px solid var(--line);border-radius:12px;padding:10px 18px}
+.tab.active{background:linear-gradient(135deg,#e9bd55,#a86d16);color:#211719;font-weight:900}
+.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.toolbar input{flex:1;min-width:190px}
+.section-title{color:var(--gold2);font-size:20px;margin:0 0 15px}
+.products{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:17px}
+.product{overflow:hidden;animation:rise .45s both;transition:.25s}
+.product:hover{transform:translateY(-5px);border-color:var(--gold);box-shadow:0 15px 35px #0006}
+.product-img{height:170px;background:#211b1c;display:grid;place-items:center;overflow:hidden}
+.product-img img{width:100%;height:100%;object-fit:contain}
+.no-img{font-size:46px;color:#9b7a45}
+.product-info{padding:14px}
+.product h3{margin:0 0 5px;font-size:17px}
+.meta{color:var(--muted);font-size:12px;line-height:2}
+.price{font-size:18px;font-weight:900;color:var(--gold2);margin:9px 0}
+.stock{font-size:12px;color:#e5c98d}
+.product-actions{display:flex;gap:7px;margin-top:12px}
+.product-actions button{flex:1}
+.empty{padding:35px;text-align:center;color:var(--muted);grid-column:1/-1}
+.panel{padding:19px;margin-top:18px}
+.hidden{display:none!important}
+.modal{
+ position:fixed;inset:0;background:#090506c9;z-index:20;
+ display:none;align-items:center;justify-content:center;padding:15px;
+ backdrop-filter:blur(7px)
+}
+.modal.show{display:flex;animation:fade .2s}
+.modal-card{width:min(720px,100%);max-height:92vh;overflow:auto;padding:22px;
+ animation:pop .25s}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.modal-head h2{margin:0;color:var(--gold2);font-size:19px}
+.close{border:0;background:#651515;color:white;border-radius:10px;padding:7px 12px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.field label{display:block;font-size:13px;color:#e8d1a6;margin-bottom:6px}
+.field.full{grid-column:1/-1}
+.form-actions{display:flex;gap:10px;margin-top:18px}
+.form-actions button{flex:1}
+.message{font-size:13px;color:var(--gold2);margin-top:10px;min-height:20px}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:600px}
+th,td{padding:12px;border-bottom:1px solid var(--line);text-align:right;font-size:13px}
+th{color:var(--gold2)}
+.option-row{display:flex;gap:8px;align-items:center;margin:8px 0}
+.option-row span{flex:1}
+.option-row button{flex-shrink:0}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes pop{from{opacity:0;transform:scale(.96) translateY(10px)}to{opacity:1;transform:none}}
+@keyframes logoGlow{from{box-shadow:0 0 0 3px #8b5b16,0 0 12px #e6b84d40}to{box-shadow:0 0 0 3px #8b5b16,0 0 28px #e6b84d90}}
+@media(max-width:1000px){.products{grid-template-columns:repeat(3,minmax(0,1fr))}.stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:650px){
+ main{padding:18px 13px 40px}.top{padding:16px}.brand h1{font-size:18px}
+ .logo{width:54px;height:54px;font-size:39px}.products{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .product-img{height:125px}.product-info{padding:10px}.product h3{font-size:14px}
+ .price{font-size:15px}.product-actions{flex-direction:column}
+ .stats{gap:9px}.stat{padding:12px}.stat strong{font-size:20px}
+ .form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}
+}
+@media(max-width:370px){.products{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-
-<section id="login">
- <div class="brand" style="margin-bottom:20px">
-  <div class="brand-mark">م</div>
-  <div><h1>پنل مدیریت فروشگاه</h1><p>ورود امن به سیستم موجودی و فروش</p></div>
+<header class="top">
+ <div class="brand">
+  <div class="logo">K</div>
+  <div><h1>مدیریت موجودی</h1><p>سامانه مدیریت محصولات و فروشگاه</p></div>
  </div>
- <h2>خوش آمدید</h2>
- <p>برای ادامه وارد حساب کاربری شوید.</p>
- <input id="email" type="email" placeholder="ایمیل">
- <input id="password" type="password" placeholder="رمز عبور">
- <button id="loginBtn" class="btn">ورود به پنل</button>
- <div id="message"></div>
+ <div class="top-actions">
+  <span id="onlineStatus">● آنلاین</span>
+  <button class="btn dark" id="logout">خروج</button>
+ </div>
+</header>
+
+<section id="login" class="modal" style="display:flex">
+ <div class="modal-card" style="max-width:400px">
+  <div class="brand" style="justify-content:center;margin-bottom:20px">
+   <div class="logo">K</div>
+  </div>
+  <h2 class="section-title">ورود به مدیریت</h2>
+  <div class="field"><label>ایمیل</label><input id="email" type="email" autocomplete="username"></div>
+  <div class="field" style="margin-top:12px"><label>رمز عبور</label><input id="password" type="password" autocomplete="current-password"></div>
+  <button class="btn" id="loginBtn" style="width:100%;margin-top:16px">ورود</button>
+  <div class="message" id="message"></div>
+ </div>
 </section>
 
-<main id="app">
- <div class="shell">
-  <header class="topbar">
-   <div class="brand"><div class="brand-mark">م</div><div><h1>مدیریت فروشگاه</h1><p>کنترل موجودی، فروش و گزارش‌ها</p></div></div>
-   <div class="top-actions"><span class="status">● اتصال آنلاین</span><button id="logout" class="btn secondary small">خروج</button></div>
-  </header>
-
-  <div class="layout">
-   <aside class="sidebar">
-    <div class="side-label">مدیریت</div>
-    <button class="nav-btn active" data-page="dashboard">▦ داشبورد</button>
-    <button class="nav-btn" data-page="productsPage">▣ محصولات</button>
-    <button class="nav-btn" data-page="salesPage">▤ دفتر فروش</button>
-    <button class="nav-btn" data-page="reportsPage">▥ گزارش‌ها</button>
-    <button class="nav-btn" data-page="archivePage">▧ بایگانی</button>
-   </aside>
-
-   <section class="main">
-    <div id="sync" class="sync">در حال اتصال...</div>
-
-    <section id="dashboard" class="page active">
-     <div class="page-title"><div><h2>داشبورد</h2><p>نمای کلی وضعیت فروشگاه</p></div><button id="dashAdd" class="btn">＋ افزودن کالا</button></div>
-     <div class="stats">
-      <div class="stat"><div class="stat-head"><span>کالاهای فعال</span><span class="stat-icon">▣</span></div><strong id="statProducts">۰</strong><small>تعداد مدل‌های موجود</small></div>
-      <div class="stat"><div class="stat-head"><span>تعداد کل موجودی</span><span class="stat-icon">▤</span></div><strong id="statStock">۰</strong><small>جمع تعداد کالاها</small></div>
-      <div class="stat"><div class="stat-head"><span>فروش امروز</span><span class="stat-icon">↗</span></div><strong id="statToday">۰ تومان</strong><small id="statTodayCount">۰ فروش امروز</small></div>
-      <div class="stat"><div class="stat-head"><span>ارزش خرید موجودی</span><span class="stat-icon">◇</span></div><strong id="statValue">۰ تومان</strong><small>بر اساس قیمت تمام‌شده</small></div>
-     </div>
-     <div class="panel rate-panel">
-      <div><h3>نرخ روز درهم</h3><p>کرایه همیشه به تومان محاسبه می‌شود.</p></div>
-      <div class="rate-control"><input id="rate" type="text" inputmode="numeric" placeholder="نرخ درهم"><button id="saveRate" class="btn">ثبت نرخ</button></div>
-     </div>
-     <div class="panel"><div class="panel-head"><h3>آخرین فروش‌ها</h3><button class="btn secondary small" data-goto="salesPage">مشاهده دفتر فروش</button></div><div id="recentSales"></div></div>
-    </section>
-
-    <section id="productsPage" class="page">
-     <div class="page-title"><div><h2>محصولات فروشگاه</h2><p>مدیریت کالاهای فعال و موجودی</p></div><button id="addProductBtn" class="btn">＋ افزودن کالا</button></div>
-     <div class="toolbar"><input id="search" type="search" placeholder="جست‌وجوی نام، مدل، برند یا دسته‌بندی..."><select id="categoryFilter"><option value="">همه دسته‌بندی‌ها</option></select></div>
-     <div id="products" class="product-grid"></div>
-    </section>
-
-    <section id="salesPage" class="page">
-     <div class="page-title"><div><h2>دفتر فروش</h2><p>سوابق فروش و امکان برگشت فروش اشتباه</p></div></div>
-     <div class="panel">
-      <div class="filters">
-       <div class="field"><label for="salesFrom">از تاریخ</label><input id="salesFrom" type="date"></div>
-       <div class="field"><label for="salesTo">تا تاریخ</label><input id="salesTo" type="date"></div>
-       <button id="filterSales" class="btn">اعمال فیلتر</button>
-       <button id="clearSalesFilter" class="btn secondary">همه تاریخ‌ها</button>
-      </div>
-      <div class="summary-strip">
-       <div class="summary-box"><span>تعداد فروش معتبر</span><strong id="salesCount">۰</strong></div>
-       <div class="summary-box"><span>مبلغ فروش معتبر</span><strong id="salesTotal">۰ تومان</strong></div>
-       <div class="summary-box"><span>فروش لغوشده</span><strong id="salesVoided">۰</strong></div>
-      </div>
-      <div id="salesTable" class="table-wrap"></div>
-     </div>
-    </section>
-
-    <section id="reportsPage" class="page">
-     <div class="page-title"><div><h2>گزارش فروش</h2><p>تحلیل فروش در بازه انتخابی</p></div></div>
-     <div class="panel">
-      <div class="filters">
-       <div class="field"><label for="reportFrom">از تاریخ</label><input id="reportFrom" type="date"></div>
-       <div class="field"><label for="reportTo">تا تاریخ</label><input id="reportTo" type="date"></div>
-       <button id="runReport" class="btn">به‌روزرسانی گزارش</button>
-      </div>
-      <div class="summary-strip">
-       <div class="summary-box"><span>تعداد فروش</span><strong id="reportCount">۰</strong></div>
-       <div class="summary-box"><span>مجموع مبلغ</span><strong id="reportTotal">۰ تومان</strong></div>
-       <div class="summary-box"><span>میانگین هر فروش</span><strong id="reportAverage">۰ تومان</strong></div>
-      </div>
-      <div class="panel-head"><h3>فروش به تفکیک کالا</h3></div>
-      <div id="topProducts" class="bar-list"></div>
-     </div>
-    </section>
-
-    <section id="archivePage" class="page">
-     <div class="page-title"><div><h2>بایگانی کالاها</h2><p>کالاهای بایگانی‌شده بدون حذف سوابق فروش</p></div></div>
-     <div id="archivedProducts" class="product-grid"></div>
-    </section>
-   </section>
-  </div>
+<main id="app" class="hidden">
+ <div class="stats">
+  <div class="stat"><span>تعداد کالاها</span><strong id="statProducts">۰</strong></div>
+  <div class="stat"><span>مجموع موجودی</span><strong id="statStock">۰</strong></div>
+  <div class="stat"><span>ارزش تقریبی خرید</span><strong id="statValue">۰</strong></div>
+  <div class="stat"><span>فروش‌های ثبت‌شده</span><strong id="statSales">۰</strong></div>
  </div>
+
+ <div class="panel ratebar">
+  <label>نرخ روز درهم</label>
+  <input id="rate" inputmode="numeric" placeholder="نرخ درهم">
+  <button class="btn" id="saveRate">ثبت نرخ</button>
+  <button class="btn dark" id="manageOptionsBtn">مدیریت برندها و دسته‌ها</button>
+ </div>
+
+ <nav class="tabs">
+  <button class="tab active" data-tab="products">محصولات</button>
+  <button class="tab" data-tab="sales">دفتر فروش</button>
+  <button class="tab" data-tab="archived">بایگانی کالاها</button>
+ </nav>
+
+ <section id="productsSection">
+  <div class="toolbar">
+   <input id="search" placeholder="جست‌وجوی نام، برند یا مدل کالا...">
+   <button class="btn" id="addProductBtn">＋ افزودن کالا</button>
+   <button class="btn dark" id="sync">به‌روزرسانی</button>
+  </div>
+  <h2 class="section-title">محصولات فروشگاه</h2>
+  <div class="products" id="products"></div>
+ </section>
+
+ <section id="salesSection" class="hidden">
+  <h2 class="section-title">دفتر فروش</h2>
+  <div class="toolbar">
+   <label>از تاریخ <input type="date" id="salesFrom"></label>
+   <label>تا تاریخ <input type="date" id="salesTo"></label>
+   <button class="btn" id="filterSales">اعمال فیلتر</button>
+  </div>
+  <div class="stats">
+   <div class="stat"><span>تعداد فروش معتبر</span><strong id="salesCount">۰</strong></div>
+   <div class="stat"><span>مبلغ کل فروش</span><strong id="salesTotal">۰</strong></div>
+  </div>
+  <div class="panel table-wrap">
+   <table><thead><tr><th>کالا</th><th>مبلغ فروش</th><th>تاریخ</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+   <tbody id="salesRows"></tbody></table>
+  </div>
+  <div class="panel"><h3 class="section-title">فروش به تفکیک کالا</h3><div id="salesByProduct"></div></div>
+ </section>
+
+ <section id="archivedSection" class="hidden">
+  <h2 class="section-title">کالاهای بایگانی‌شده</h2>
+  <div class="products" id="archivedProducts"></div>
+ </section>
 </main>
 
-<div id="productModal" class="modal">
- <div class="modal-panel">
-  <div class="modal-head"><h2 id="formTitle">افزودن محصول جدید</h2><button id="closeProductModal" class="close" type="button">×</button></div>
+<div class="modal" id="productModal">
+ <div class="modal-card">
+  <div class="modal-head"><h2 id="formTitle">افزودن محصول جدید</h2><button class="close" id="closeProductModal">✕</button></div>
   <form id="productForm">
-   <input id="pid" type="hidden">
+   <input type="hidden" id="pid">
    <div class="form-grid">
-    <div class="field"><label for="name">نام محصول</label><input id="name" required placeholder="نام محصول"></div>
-    <div class="field"><label for="category">دسته‌بندی</label><select id="category"></select></div>
-    <div class="field"><label for="brand">برند</label><select id="brand"></select></div>
-    <div class="field"><label for="tag">مدل یا تگ</label><input id="tag" placeholder="مدل محصول"></div>
-    <div class="field"><label for="purchaseType">نوع خرید</label><select id="purchaseType"><option value="toman">تومانی</option><option value="dirham">درهمی</option></select></div>
-    <div class="field"><label for="buyPrice">قیمت خرید <span id="buyUnit">(تومان)</span></label><input id="buyPrice" type="text" inputmode="decimal" required placeholder="قیمت خرید"><div class="hint" id="buyHint">قیمت تومانی با جداکننده سه‌رقمی نمایش داده می‌شود.</div></div>
-    <div class="field"><label for="freight">کرایه (تومان)</label><input id="freight" type="text" inputmode="numeric" value="۰"></div>
-    <div class="field"><label for="profitType">نوع سود</label><select id="profitType"><option value="fixed">مبلغ ثابت (تومان)</option><option value="percent">درصدی</option></select></div>
-    <div class="field"><label for="profitValue">مقدار سود</label><input id="profitValue" type="text" inputmode="decimal" placeholder="مقدار سود"></div>
-    <div class="field"><label for="quantity">تعداد موجودی</label><input id="quantity" type="number" min="0" step="1" value="1" required></div>
-    <div class="field full"><label for="photo">عکس محصول</label><input id="photo" type="file" accept="image/*"></div>
-    <div class="field full"><label for="description">توضیحات</label><textarea id="description" rows="3" placeholder="توضیحات محصول..."></textarea></div>
+    <div class="field"><label>نام محصول</label><input id="name" required></div>
+    <div class="field"><label>دسته‌بندی</label><select id="category"><option value="">انتخاب دسته‌بندی</option></select></div>
+    <div class="field"><label>برند</label><select id="brand"><option value="">انتخاب برند</option></select></div>
+    <div class="field"><label>مدل / تگ</label><input id="tag"></div>
+    <div class="field"><label>نوع خرید</label><select id="purchaseType"><option value="toman">تومانی</option><option value="dirham">درهمی</option></select></div>
+    <div class="field"><label>قیمت خرید</label><input id="buyPrice" inputmode="numeric" required></div>
+    <div class="field"><label>کرایه (تومان)</label><input id="freight" inputmode="numeric" value="0"></div>
+    <div class="field"><label>نوع سود</label><select id="profitType"><option value="fixed">مبلغ ثابت</option><option value="percent">درصدی</option></select></div>
+    <div class="field"><label>مقدار سود</label><input id="profitValue" inputmode="numeric" value="0"></div>
+    <div class="field"><label>تعداد موجودی</label><input id="quantity" type="number" min="0" value="1" required></div>
+    <div class="field"><label>عکس محصول</label><input id="photo" type="file" accept="image/*"></div>
+    <div class="field full"><label>توضیحات</label><textarea id="description" rows="3"></textarea></div>
    </div>
-   <div class="form-actions"><button id="saveProduct" type="submit" class="btn">ذخیره محصول</button><button id="cancelEdit" type="button" class="btn secondary">انصراف</button></div>
-   <div id="formMessage"></div>
+   <div class="message" id="formMessage"></div>
+   <div class="form-actions">
+    <button class="btn" type="submit" id="saveProduct">ذخیره محصول</button>
+    <button class="btn dark" type="button" id="cancelEdit">انصراف</button>
+   </div>
   </form>
+ </div>
+</div>
+
+<div class="modal" id="optionsModal">
+ <div class="modal-card">
+  <div class="modal-head"><h2>مدیریت برندها و دسته‌بندی‌ها</h2><button class="close" id="closeOptions">✕</button></div>
+  <div class="form-grid">
+   <div class="field">
+    <label>افزودن برند جدید</label><input id="newBrand" placeholder="مثلاً گرین لاین">
+    <button class="btn" id="addBrand" style="width:100%;margin-top:8px">افزودن برند</button>
+    <div id="brandOptions"></div>
+   </div>
+   <div class="field">
+    <label>افزودن دسته‌بندی جدید</label><input id="newCategory" placeholder="مثلاً لوازم جانبی">
+    <button class="btn" id="addCategory" style="width:100%;margin-top:8px">افزودن دسته‌بندی</button>
+    <div id="categoryOptions"></div>
+   </div>
+  </div>
+  <div class="message" id="optionsMessage"></div>
  </div>
 </div>
 
