@@ -1,89 +1,80 @@
 
-const CACHE_NAME = "inventory-v2";
-
-const FILES_TO_CACHE = [
+const CACHE_NAME = "inventory-v3";
+const APP_FILES = [
   "./",
   "./index.html",
   "./app.js",
   "./config.js"
 ];
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      await cache.addAll(FILES_TO_CACHE);
-    })
-  );
-
+self.addEventListener("install", event => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await Promise.allSettled(
+      APP_FILES.map(file => cache.add(file))
+    );
+  })());
   self.skipWaiting();
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key.startsWith("inventory-") && key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      )
-    )
-  );
-
-  self.clients.claim();
+self.addEventListener("activate", event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
+      keys.filter(key => key.startsWith("inventory-") && key !== CACHE_NAME)
+        .map(key => caches.delete(key))
+    );
+    await self.clients.claim();
+  })());
 });
 
-self.addEventListener("fetch", (event) => {
+self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
 
   const url = new URL(event.request.url);
 
-  if (url.origin !== self.location.origin) return;
+  // ذخیره کتابخانه Supabase برای اجرای برنامه در حالت آفلاین
+  if (url.hostname === "esm.sh") {
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(event.request);
 
-  // فایل‌های اصلی سایت: اول از حافظه، سپس اینترنت
-  const isAppFile = FILES_TO_CACHE.some((file) =>
-    url.pathname.endsWith(file.replace("./", ""))
-  );
-
-  if (isAppFile) {
-    event.respondWith(
-      caches.match(event.request).then(async (cached) => {
-        if (cached) return cached;
-
-        try {
-          const response = await fetch(event.request);
-
-          if (response.ok) {
-            const cache = await caches.open(CACHE_NAME);
-            cache.put(event.request, response.clone());
-          }
-
-          return response;
-        } catch {
-          return caches.match("./index.html");
+      try {
+        const response = await fetch(event.request);
+        if (response.ok) {
+          await cache.put(event.request, response.clone());
         }
-      })
-    );
-
+        return response;
+      } catch {
+        if (cached) return cached;
+        return new Response("کتابخانه آفلاین در دسترس نیست", {
+          status: 503
+        });
+      }
+    })());
     return;
   }
 
-  // سایر درخواست‌ها: اول اینترنت، در صورت قطع اینترنت حافظه
-  event.respondWith(
-    fetch(event.request)
-      .then(async (response) => {
-        if (response.ok) {
-          const cache = await caches.open(CACHE_NAME);
-          cache.put(event.request, response.clone());
-        }
+  if (url.origin !== self.location.origin) return;
 
-        return response;
-      })
-      .catch(async () => {
-        return (
-          await caches.match(event.request)
-        ) || (
-          await caches.match("./index.html")
-        );
-      })
-  );
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(event.request);
+
+    if (cached) {
+      fetch(event.request).then(response => {
+        if (response.ok) cache.put(event.request, response.clone());
+      }).catch(() => {});
+      return cached;
+    }
+
+    try {
+      const response = await fetch(event.request);
+      if (response.ok) await cache.put(event.request, response.clone());
+      return response;
+    } catch {
+      return await cache.match("./index.html") ||
+        new Response("این صفحه آفلاین در دسترس نیست", { status: 503 });
+    }
+  })());
 });
