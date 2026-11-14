@@ -9,13 +9,102 @@ const ALLOWED_EMAILS = [
   "hossein5khezri@gmail.com"
 ];
 
+const OFFLINE_PRODUCTS_KEY = "inventory_offline_products";
+const OFFLINE_USER_KEY = "inventory_offline_user";
+
 let currentUser = null;
 let products = [];
 let sales = [];
 let options = [];
 let dirhamRate = 0;
+let offlineMode = false;
 
 const $ = id => document.getElementById(id);
+
+// ---------------- ذخیره‌سازی آفلاین ----------------
+
+function saveOfflineProducts(items) {
+  try {
+    localStorage.setItem(OFFLINE_PRODUCTS_KEY, JSON.stringify(items));
+  } catch (error) {
+    console.error("ذخیره محصولات ناموفق بود:", error);
+  }
+}
+
+function getOfflineProducts() {
+  try {
+    return JSON.parse(localStorage.getItem(OFFLINE_PRODUCTS_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+async function hashPassword(password, salt) {
+  const encoder = new TextEncoder();
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: encoder.encode(salt),
+      iterations: 150000,
+      hash: "SHA-256"
+    },
+    key,
+    256
+  );
+
+  return Array.from(new Uint8Array(bits))
+    .map(byte => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function saveOfflineLogin(email, password, userId) {
+  const salt = crypto.randomUUID();
+  const passwordHash = await hashPassword(password, salt);
+
+  localStorage.setItem(OFFLINE_USER_KEY, JSON.stringify({
+    email,
+    userId,
+    salt,
+    passwordHash
+  }));
+}
+
+async function verifyOfflineLogin(email, password) {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(OFFLINE_USER_KEY) || "null"
+    );
+
+    if (!saved || saved.email !== email) return null;
+
+    const hash = await hashPassword(password, saved.salt);
+
+    if (hash !== saved.passwordHash) return null;
+
+    return {
+      id: saved.userId,
+      email: saved.email
+    };
+  } catch (error) {
+    console.error("خطای ورود آفلاین:", error);
+    return null;
+  }
+}
+
+function setConnectionStatus(message) {
+  if ($("onlineStatus")) {
+    $("onlineStatus").textContent = message;
+  }
+}
 
 function money(value) {
   return Number(value || 0).toLocaleString("fa-IR");
@@ -121,35 +210,102 @@ async function login() {
     return;
   }
 
-  $("loginBtn").disabled = true;
-  showMessage("message", "در حال ورود...");
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  });
-
-  $("loginBtn").disabled = false;
-
-  if (error) {
-    showMessage("message", "خطا در ورود: " + error.message);
+  if (!password) {
+    showMessage("message", "رمز عبور را وارد کن.");
     return;
   }
 
-  currentUser = data.user;
-  await refreshAll();
-  showApp();
+  $("loginBtn").disabled = true;
+  showMessage("message", "در حال ورود...");
+
+  // ورود آفلاین
+  if (!navigator.onLine) {
+    const offlineUser = await verifyOfflineLogin(email, password);
+
+    $("loginBtn").disabled = false;
+
+    if (!offlineUser) {
+      showMessage(
+        "message",
+        "اطلاعات ورود آفلاین پیدا نشد یا رمز اشتباه است. ابتدا با اینترنت وارد شو."
+      );
+      return;
+    }
+
+    currentUser = offlineUser;
+    offlineMode = true;
+
+    products = getOfflineProducts();
+
+    if (!products.length) {
+      showMessage("message", "محصولی قبلاً ذخیره نشده است. یک بار آنلاین وارد شو.");
+      return;
+    }
+
+    renderProducts();
+    renderArchive();
+    renderDashboard();
+
+    setConnectionStatus("● آفلاین");
+    showApp();
+    return;
+  }
+
+  // ورود آنلاین
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) {
+      $("loginBtn").disabled = false;
+      showMessage("message", "خطا در ورود: " + error.message);
+      return;
+    }
+
+    currentUser = data.user;
+    offlineMode = false;
+
+    await saveOfflineLogin(email, password, currentUser.id);
+
+    await refreshAll();
+    $("loginBtn").disabled = false;
+
+    setConnectionStatus("● آنلاین");
+    showApp();
+
+  } catch (error) {
+    $("loginBtn").disabled = false;
+    showMessage("message", "اتصال برقرار نشد. اگر قبلاً آنلاین وارد شده‌ای، اینترنت را خاموش کن و دوباره تلاش کن.");
+    console.error(error);
+  }
 }
 
 async function logout() {
-  await supabase.auth.signOut();
+  if (navigator.onLine) {
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   currentUser = null;
   products = [];
   sales = [];
+  options = [];
+  offlineMode = false;
+
   showLogin();
 }
 
 async function checkSession() {
+  if (!navigator.onLine) {
+    showLogin();
+    return;
+  }
+
   const { data, error } = await supabase.auth.getSession();
 
   if (error || !data.session) {
@@ -164,6 +320,7 @@ async function checkSession() {
     return;
   }
 
+  offlineMode = false;
   await refreshAll();
   showApp();
 }
@@ -171,6 +328,13 @@ async function checkSession() {
 // ---------------- دریافت اطلاعات ----------------
 
 async function loadProducts() {
+  if (!navigator.onLine || offlineMode) {
+    products = getOfflineProducts();
+    renderProducts();
+    renderArchive();
+    return;
+  }
+
   const { data, error } = await supabase
     .from("inventory_products")
     .select("*")
@@ -178,16 +342,28 @@ async function loadProducts() {
 
   if (error) {
     console.error("خطای دریافت محصولات:", error);
-    alert("دریافت محصولات ناموفق بود: " + error.message);
+
+    products = getOfflineProducts();
+    renderProducts();
+    renderArchive();
+
     return;
   }
 
   products = data || [];
+  saveOfflineProducts(products);
+
   renderProducts();
   renderArchive();
 }
 
 async function loadSales() {
+  if (!navigator.onLine || offlineMode) {
+    sales = [];
+    renderSales();
+    return;
+  }
+
   const { data, error } = await supabase
     .from("inventory_sale_events")
     .select("*")
@@ -195,7 +371,6 @@ async function loadSales() {
 
   if (error) {
     console.error("خطای دریافت فروش‌ها:", error);
-    alert("دریافت سابقه فروش ناموفق بود: " + error.message);
     return;
   }
 
@@ -204,6 +379,8 @@ async function loadSales() {
 }
 
 async function loadRate() {
+  if (!navigator.onLine || offlineMode) return;
+
   const { data, error } = await supabase
     .from("inventory_settings")
     .select("*")
@@ -223,6 +400,8 @@ async function loadRate() {
 }
 
 async function loadOptions() {
+  if (!navigator.onLine || offlineMode) return;
+
   const { data, error } = await supabase
     .from("inventory_options")
     .select("*")
@@ -239,6 +418,16 @@ async function loadOptions() {
 }
 
 async function refreshAll() {
+  if (!navigator.onLine || offlineMode) {
+    products = getOfflineProducts();
+    renderProducts();
+    renderArchive();
+    renderDashboard();
+    renderSales();
+    setConnectionStatus("● آفلاین");
+    return;
+  }
+
   await Promise.all([
     loadProducts(),
     loadSales(),
@@ -306,17 +495,21 @@ function renderProducts() {
         </div>
 
         <div class="product-actions">
-          <button class="btn small" data-sell="${p.id}">
-            فروش
-          </button>
+          ${offlineMode ? `
+            <span class="meta">نمایش آفلاین</span>
+          ` : `
+            <button class="btn small" data-sell="${p.id}">
+              فروش
+            </button>
 
-          <button class="btn dark small" data-edit="${p.id}">
-            ویرایش
-          </button>
+            <button class="btn dark small" data-edit="${p.id}">
+              ویرایش
+            </button>
 
-          <button class="btn red small" data-archive="${p.id}">
-            بایگانی
-          </button>
+            <button class="btn red small" data-archive="${p.id}">
+              بایگانی
+            </button>
+          `}
         </div>
       </div>
     </article>
@@ -324,6 +517,11 @@ function renderProducts() {
 }
 
 function openProductForm(product = null) {
+  if (offlineMode || !navigator.onLine) {
+    alert("در حالت آفلاین امکان تغییر محصولات وجود ندارد.");
+    return;
+  }
+
   $("productForm").reset();
   $("pid").value = product?.id || "";
   $("formTitle").textContent = product ? "ویرایش محصول" : "افزودن محصول";
@@ -350,6 +548,11 @@ function closeProductForm() {
 
 async function saveProduct(event) {
   event.preventDefault();
+
+  if (offlineMode || !navigator.onLine) {
+    showMessage("formMessage", "برای ذخیره محصول باید اینترنت وصل باشد.");
+    return;
+  }
 
   const id = $("pid").value;
 
@@ -407,6 +610,11 @@ async function saveProduct(event) {
 }
 
 async function archiveProduct(id) {
+  if (offlineMode || !navigator.onLine) {
+    alert("برای بایگانی محصول باید اینترنت وصل باشد.");
+    return;
+  }
+
   if (!confirm("این کالا به بایگانی منتقل شود؟")) return;
 
   const { error } = await supabase
@@ -427,6 +635,11 @@ async function archiveProduct(id) {
 }
 
 async function restoreProduct(id) {
+  if (offlineMode || !navigator.onLine) {
+    alert("برای بازگردانی محصول باید اینترنت وصل باشد.");
+    return;
+  }
+
   const { error } = await supabase
     .from("inventory_products")
     .update({
@@ -463,11 +676,13 @@ function renderArchive() {
         <h3>${esc(p.name)}</h3>
         <div class="meta">${esc(p.brand || "")}</div>
 
-        <div class="product-actions">
-          <button class="btn small" data-restore="${p.id}">
-            بازگردانی
-          </button>
-        </div>
+        ${offlineMode ? "" : `
+          <div class="product-actions">
+            <button class="btn small" data-restore="${p.id}">
+              بازگردانی
+            </button>
+          </div>
+        `}
       </div>
     </article>
   `).join("");
@@ -476,6 +691,11 @@ function renderArchive() {
 // ---------------- ثبت فروش ----------------
 
 async function sellProduct(id) {
+  if (offlineMode || !navigator.onLine) {
+    alert("برای ثبت فروش باید اینترنت وصل باشد.");
+    return;
+  }
+
   const product = products.find(p => String(p.id) === String(id));
 
   if (!product) return;
@@ -508,6 +728,11 @@ async function sellProduct(id) {
 }
 
 async function cancelSale(eventId) {
+  if (offlineMode || !navigator.onLine) {
+    alert("برای لغو فروش باید اینترنت وصل باشد.");
+    return;
+  }
+
   if (!confirm("این فروش لغو شود و یک عدد به موجودی برگردد؟")) return;
 
   const { error } = await supabase.rpc("cancel_inventory_sale", {
@@ -573,12 +798,16 @@ function renderDaily() {
   const date = $("dailyDate")?.value || today();
   const list = salesForDate(date);
 
-  $("dailyCount").textContent = money(list.length);
+  if ($("dailyCount")) {
+    $("dailyCount").textContent = money(list.length);
+  }
 
-  $("dailyTotal").textContent =
-    money(list.reduce((sum, s) =>
-      sum + Number(s.sale_price || 0), 0
-    )) + " تومان";
+  if ($("dailyTotal")) {
+    $("dailyTotal").textContent =
+      money(list.reduce((sum, s) =>
+        sum + Number(s.sale_price || 0), 0
+      )) + " تومان";
+  }
 
   groupSales(list, "dailyGroups");
 }
@@ -600,12 +829,16 @@ function renderSales() {
 
   const valid = list.filter(s => !s.voided_at);
 
-  $("salesCount").textContent = money(valid.length);
+  if ($("salesCount")) {
+    $("salesCount").textContent = money(valid.length);
+  }
 
-  $("salesTotal").textContent =
-    money(valid.reduce((sum, s) =>
-      sum + Number(s.sale_price || 0), 0
-    )) + " تومان";
+  if ($("salesTotal")) {
+    $("salesTotal").textContent =
+      money(valid.reduce((sum, s) =>
+        sum + Number(s.sale_price || 0), 0
+      )) + " تومان";
+  }
 
   if (!list.length) {
     rows.innerHTML = `
@@ -636,7 +869,7 @@ function renderSales() {
           <td>${canceled ? "لغوشده" : "ثبت‌شده"}</td>
 
           <td>
-            ${canceled
+            ${canceled || offlineMode
               ? "—"
               : `<button class="btn red small"
                     data-cancel="${esc(String(s.event_id))}">
@@ -666,24 +899,32 @@ function renderSales() {
   const ranking = Object.values(grouped)
     .sort((a, b) => b.count - a.count || b.total - a.total);
 
-  $("topSellerName").textContent =
-    ranking.length ? ranking[0].name : "فروشی ثبت نشده";
+  if ($("topSellerName")) {
+    $("topSellerName").textContent =
+      ranking.length ? ranking[0].name : "فروشی ثبت نشده";
+  }
 
-  $("topSellerCount").textContent =
-    ranking.length ? money(ranking[0].count) + " عدد فروش" : "۰";
+  if ($("topSellerCount")) {
+    $("topSellerCount").textContent =
+      ranking.length ? money(ranking[0].count) + " عدد فروش" : "۰";
+  }
 
-  $("topSellerTotal").textContent =
-    ranking.length ? money(ranking[0].total) + " تومان" : "۰ تومان";
+  if ($("topSellerTotal")) {
+    $("topSellerTotal").textContent =
+      ranking.length ? money(ranking[0].total) + " تومان" : "۰ تومان";
+  }
 
-  $("topSellerRanking").innerHTML = ranking.length
-    ? ranking.map((p, i) => `
-        <div class="option-row">
-          <span>${i + 1}. ${esc(p.name)}</span>
-          <span>${money(p.count)} عدد</span>
-          <strong>${money(p.total)} تومان</strong>
-        </div>
-      `).join("")
-    : '<div class="empty">در این بازه فروشی ثبت نشده است.</div>';
+  if ($("topSellerRanking")) {
+    $("topSellerRanking").innerHTML = ranking.length
+      ? ranking.map((p, i) => `
+          <div class="option-row">
+            <span>${i + 1}. ${esc(p.name)}</span>
+            <span>${money(p.count)} عدد</span>
+            <strong>${money(p.total)} تومان</strong>
+          </div>
+        `).join("")
+      : '<div class="empty">در این بازه فروشی ثبت نشده است.</div>';
+  }
 }
 
 // ---------------- داشبورد ----------------
@@ -691,20 +932,28 @@ function renderSales() {
 function renderDashboard() {
   const active = activeProducts();
 
-  $("statProducts").textContent = money(active.length);
+  if ($("statProducts")) {
+    $("statProducts").textContent = money(active.length);
+  }
 
-  $("statStock").textContent = money(
-    active.reduce((sum, p) => sum + Number(p.quantity || 0), 0)
-  );
+  if ($("statStock")) {
+    $("statStock").textContent = money(
+      active.reduce((sum, p) => sum + Number(p.quantity || 0), 0)
+    );
+  }
 
-  $("statValue").textContent =
-    money(active.reduce((sum, p) =>
-      sum + costPrice(p) * Number(p.quantity || 0), 0
-    )) + " تومان";
+  if ($("statValue")) {
+    $("statValue").textContent =
+      money(active.reduce((sum, p) =>
+        sum + costPrice(p) * Number(p.quantity || 0), 0
+      )) + " تومان";
+  }
 
   const validSales = sales.filter(s => !s.voided_at);
 
-  $("statSales").textContent = money(validSales.length);
+  if ($("statSales")) {
+    $("statSales").textContent = money(validSales.length);
+  }
 
   const grouped = {};
 
@@ -717,17 +966,24 @@ function renderDashboard() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10);
 
-  $("dashboardTop").innerHTML = ranking.length
-    ? ranking.map(([name, count], i) => `
-        <div class="option-row">
-          <span>${i + 1}. ${esc(name)}</span>
-          <strong>${money(count)} فروش</strong>
-        </div>
-      `).join("")
-    : '<div class="empty">هنوز فروشی ثبت نشده است.</div>';
+  if ($("dashboardTop")) {
+    $("dashboardTop").innerHTML = ranking.length
+      ? ranking.map(([name, count], i) => `
+          <div class="option-row">
+            <span>${i + 1}. ${esc(name)}</span>
+            <strong>${money(count)} فروش</strong>
+          </div>
+        `).join("")
+      : '<div class="empty">هنوز فروشی ثبت نشده است.</div>';
+  }
 }
 
 async function saveRate() {
+  if (offlineMode || !navigator.onLine) {
+    alert("برای ذخیره نرخ باید اینترنت وصل باشد.");
+    return;
+  }
+
   const rate = digits($("rate").value);
 
   if (rate <= 0) {
@@ -777,39 +1033,52 @@ function renderOptionSelects() {
   const brands = options.filter(o => o.option_type === "brand");
   const categories = options.filter(o => o.option_type === "category");
 
-  $("brand").innerHTML =
-    '<option value="">انتخاب برند</option>' +
-    brands.map(o =>
-      `<option value="${esc(o.name)}">${esc(o.name)}</option>`
-    ).join("");
+  if ($("brand")) {
+    $("brand").innerHTML =
+      '<option value="">انتخاب برند</option>' +
+      brands.map(o =>
+        `<option value="${esc(o.name)}">${esc(o.name)}</option>`
+      ).join("");
+  }
 
-  $("category").innerHTML =
-    '<option value="">انتخاب دسته‌بندی</option>' +
-    categories.map(o =>
-      `<option value="${esc(o.name)}">${esc(o.name)}</option>`
-    ).join("");
+  if ($("category")) {
+    $("category").innerHTML =
+      '<option value="">انتخاب دسته‌بندی</option>' +
+      categories.map(o =>
+        `<option value="${esc(o.name)}">${esc(o.name)}</option>`
+      ).join("");
+  }
 }
 
 function renderOptionLists() {
   const brands = options.filter(o => o.option_type === "brand");
   const categories = options.filter(o => o.option_type === "category");
 
-  $("brandOptions").innerHTML = brands.map(o => `
-    <div class="option-row">
-      <span>${esc(o.name)}</span>
-      <button class="btn red small" data-delete-option="${o.id}">حذف</button>
-    </div>
-  `).join("");
+  if ($("brandOptions")) {
+    $("brandOptions").innerHTML = brands.map(o => `
+      <div class="option-row">
+        <span>${esc(o.name)}</span>
+        <button class="btn red small" data-delete-option="${o.id}">حذف</button>
+      </div>
+    `).join("");
+  }
 
-  $("categoryOptions").innerHTML = categories.map(o => `
-    <div class="option-row">
-      <span>${esc(o.name)}</span>
-      <button class="btn red small" data-delete-option="${o.id}">حذف</button>
-    </div>
-  `).join("");
+  if ($("categoryOptions")) {
+    $("categoryOptions").innerHTML = categories.map(o => `
+      <div class="option-row">
+        <span>${esc(o.name)}</span>
+        <button class="btn red small" data-delete-option="${o.id}">حذف</button>
+      </div>
+    `).join("");
+  }
 }
 
 async function addOption(type) {
+  if (offlineMode || !navigator.onLine) {
+    alert("برای افزودن گزینه باید اینترنت وصل باشد.");
+    return;
+  }
+
   const input = type === "brand" ? $("newBrand") : $("newCategory");
   const name = input.value.trim();
 
@@ -848,6 +1117,11 @@ async function addOption(type) {
 }
 
 async function deleteOption(id) {
+  if (offlineMode || !navigator.onLine) {
+    alert("برای حذف گزینه باید اینترنت وصل باشد.");
+    return;
+  }
+
   if (!confirm("این گزینه حذف شود؟")) return;
 
   const { error } = await supabase
@@ -925,6 +1199,11 @@ $("filterSales").addEventListener("click", event => {
 });
 
 $("manageOptionsBtn").addEventListener("click", () => {
+  if (offlineMode) {
+    alert("مدیریت گزینه‌ها در حالت آفلاین در دسترس نیست.");
+    return;
+  }
+
   $("optionsModal").classList.add("show");
 });
 
@@ -977,13 +1256,39 @@ document.addEventListener("click", async event => {
     return;
   }
 
-  const deleteOption = target.closest("[data-delete-option]");
-  if (deleteOption) {
-    await deleteOption(deleteOption.dataset.deleteOption);
+  const deleteOptionButton = target.closest("[data-delete-option]");
+  if (deleteOptionButton) {
+    await deleteOption(deleteOptionButton.dataset.deleteOption);
   }
 });
 
-// ---------------- وضعیت اتصال و شروع ----------------
+// ---------------- اتصال اینترنت ----------------
+
+window.addEventListener("online", async () => {
+  setConnectionStatus("● اینترنت وصل شد");
+
+  if (currentUser && offlineMode) {
+    try {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (!error && data.session) {
+        currentUser = data.session.user;
+        offlineMode = false;
+        await refreshAll();
+        setConnectionStatus("● آنلاین");
+        renderProducts();
+      }
+    } catch (error) {
+      console.error("اتصال مجدد ناموفق بود:", error);
+    }
+  }
+});
+
+window.addEventListener("offline", () => {
+  setConnectionStatus("● آفلاین");
+});
+
+// ---------------- وضعیت ورود و شروع ----------------
 
 supabase.auth.onAuthStateChange((event, session) => {
   if (event === "SIGNED_OUT") {
@@ -993,14 +1298,21 @@ supabase.auth.onAuthStateChange((event, session) => {
 });
 
 async function startApp() {
-  $("onlineStatus").textContent = "● در حال اتصال";
+  setConnectionStatus(
+    navigator.onLine ? "● در حال اتصال" : "● آفلاین"
+  );
 
   try {
-    await checkSession();
-    $("onlineStatus").textContent = "● آنلاین";
+    if (navigator.onLine) {
+      await checkSession();
+      setConnectionStatus("● آنلاین");
+    } else {
+      showLogin();
+      setConnectionStatus("● آفلاین");
+    }
   } catch (error) {
     console.error("خطای شروع برنامه:", error);
-    $("onlineStatus").textContent = "● خطا در اتصال";
+    setConnectionStatus("● آفلاین");
     showLogin();
   }
 }
