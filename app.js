@@ -218,7 +218,6 @@ async function login() {
   $("loginBtn").disabled = true;
   showMessage("message", "در حال ورود...");
 
-  // ورود آفلاین
   if (!navigator.onLine) {
     const offlineUser = await verifyOfflineLogin(email, password);
 
@@ -251,7 +250,6 @@ async function login() {
     return;
   }
 
-  // ورود آنلاین
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -399,16 +397,18 @@ async function loadRate() {
   }
 }
 
+// اصلاح‌شده: استفاده از option_name
 async function loadOptions() {
   if (!navigator.onLine || offlineMode) return;
 
   const { data, error } = await supabase
     .from("inventory_options")
     .select("*")
-    .order("name", { ascending: true });
+    .order("option_name", { ascending: true });
 
   if (error) {
     console.error("خطای دریافت گزینه‌ها:", error);
+    showMessage("optionsMessage", "خطا در دریافت گزینه‌ها: " + error.message);
     return;
   }
 
@@ -1029,6 +1029,8 @@ async function saveRate() {
 
 // ---------------- برندها و دسته‌بندی‌ها ----------------
 
+// استفاده از ستون اصلی option_name در دیتابیس
+
 function renderOptionSelects() {
   const brands = options.filter(o => o.option_type === "brand");
   const categories = options.filter(o => o.option_type === "category");
@@ -1037,7 +1039,7 @@ function renderOptionSelects() {
     $("brand").innerHTML =
       '<option value="">انتخاب برند</option>' +
       brands.map(o =>
-        `<option value="${esc(o.name)}">${esc(o.name)}</option>`
+        `<option value="${esc(o.option_name)}">${esc(o.option_name)}</option>`
       ).join("");
   }
 
@@ -1045,7 +1047,7 @@ function renderOptionSelects() {
     $("category").innerHTML =
       '<option value="">انتخاب دسته‌بندی</option>' +
       categories.map(o =>
-        `<option value="${esc(o.name)}">${esc(o.name)}</option>`
+        `<option value="${esc(o.option_name)}">${esc(o.option_name)}</option>`
       ).join("");
   }
 }
@@ -1057,7 +1059,7 @@ function renderOptionLists() {
   if ($("brandOptions")) {
     $("brandOptions").innerHTML = brands.map(o => `
       <div class="option-row">
-        <span>${esc(o.name)}</span>
+        <span>${esc(o.option_name)}</span>
         <button class="btn red small" data-delete-option="${o.id}">حذف</button>
       </div>
     `).join("");
@@ -1066,7 +1068,7 @@ function renderOptionLists() {
   if ($("categoryOptions")) {
     $("categoryOptions").innerHTML = categories.map(o => `
       <div class="option-row">
-        <span>${esc(o.name)}</span>
+        <span>${esc(o.option_name)}</span>
         <button class="btn red small" data-delete-option="${o.id}">حذف</button>
       </div>
     `).join("");
@@ -1079,7 +1081,18 @@ async function addOption(type) {
     return;
   }
 
+  if (!currentUser) {
+    showMessage("optionsMessage", "ابتدا وارد حساب کاربری شو.");
+    return;
+  }
+
   const input = type === "brand" ? $("newBrand") : $("newCategory");
+
+  if (!input) {
+    showMessage("optionsMessage", "فیلد ورود اطلاعات پیدا نشد.");
+    return;
+  }
+
   const name = input.value.trim();
 
   if (!name) {
@@ -1089,7 +1102,7 @@ async function addOption(type) {
 
   const duplicate = options.some(o =>
     o.option_type === type &&
-    o.name.toLowerCase() === name.toLowerCase()
+    String(o.option_name || "").toLowerCase() === name.toLowerCase()
   );
 
   if (duplicate) {
@@ -1097,16 +1110,19 @@ async function addOption(type) {
     return;
   }
 
+  showMessage("optionsMessage", "در حال ثبت...");
+
   const { error } = await supabase
     .from("inventory_options")
     .insert({
       user_id: currentUser.id,
       option_type: type,
-      name
+      option_name: name
     });
 
   if (error) {
     showMessage("optionsMessage", "خطا: " + error.message);
+    console.error("خطای افزودن گزینه:", error);
     return;
   }
 
