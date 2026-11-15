@@ -102,6 +102,8 @@ async function verifyOfflineLogin(email, password) {
   }
 }
 
+// ---------------- ابزارهای عمومی ----------------
+
 function setConnectionStatus(message) {
   if ($("onlineStatus")) {
     $("onlineStatus").textContent = message;
@@ -154,6 +156,7 @@ function showPage(pageId) {
   if (pageId === "dashboardPage") renderDashboard();
   if (pageId === "salesPage") renderSales();
   if (pageId === "archivePage") renderArchive();
+  if (pageId === "categoriesPage") renderCategoriesPage();
 }
 
 function costPrice(product) {
@@ -253,6 +256,7 @@ async function login() {
     renderProducts();
     renderArchive();
     renderDashboard();
+    renderCategoriesPage();
 
     setConnectionStatus("● آفلاین");
     showApp();
@@ -339,6 +343,7 @@ async function loadProducts() {
     products = getOfflineProducts();
     renderProducts();
     renderArchive();
+    renderCategoriesPage();
     return;
   }
 
@@ -353,6 +358,7 @@ async function loadProducts() {
     products = getOfflineProducts();
     renderProducts();
     renderArchive();
+    renderCategoriesPage();
 
     return;
   }
@@ -362,6 +368,7 @@ async function loadProducts() {
 
   renderProducts();
   renderArchive();
+  renderCategoriesPage();
 }
 
 async function loadSales() {
@@ -407,7 +414,12 @@ async function loadRate() {
 }
 
 async function loadOptions() {
-  if (!navigator.onLine || offlineMode) return;
+  if (!navigator.onLine || offlineMode) {
+    renderOptionSelects();
+    renderOptionLists();
+    renderCategoriesPage();
+    return;
+  }
 
   const { data, error } = await supabase
     .from("inventory_options")
@@ -423,6 +435,7 @@ async function loadOptions() {
   options = data || [];
   renderOptionSelects();
   renderOptionLists();
+  renderCategoriesPage();
 }
 
 async function refreshAll() {
@@ -432,6 +445,7 @@ async function refreshAll() {
     renderArchive();
     renderDashboard();
     renderSales();
+    renderCategoriesPage();
     setConnectionStatus("● آفلاین");
     return;
   }
@@ -447,6 +461,7 @@ async function refreshAll() {
   renderDashboard();
   renderSales();
   renderArchive();
+  renderCategoriesPage();
 }
 
 // ---------------- آپلود عکس محصول ----------------
@@ -501,35 +516,10 @@ async function uploadProductPhoto(file) {
   return data.publicUrl;
 }
 
-// ---------------- محصولات ----------------
+// ---------------- نمایش محصولات ----------------
 
-function renderProducts() {
-  const container = $("products");
-  if (!container) return;
-
-  const query = ($("search")?.value || "").trim().toLowerCase();
-
-  const list = activeProducts().filter(p => {
-    const text = [
-      p.name,
-      p.tag,
-      p.brand,
-      p.category
-    ].join(" ").toLowerCase();
-
-    return text.includes(query);
-  });
-
-  if (!list.length) {
-    container.innerHTML = `
-      <div class="empty">
-        محصولی پیدا نشد.
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = list.map(p => `
+function createProductCard(p) {
+  return `
     <article class="product">
       <div class="product-img">
         ${productImage(p)}
@@ -558,22 +548,179 @@ function renderProducts() {
           ${offlineMode ? `
             <span class="meta">نمایش آفلاین</span>
           ` : `
-            <button class="btn small" data-sell="${p.id}">
+            <button class="btn small" data-sell="${esc(String(p.id))}">
               فروش
             </button>
 
-            <button class="btn dark small" data-edit="${p.id}">
+            <button class="btn dark small" data-edit="${esc(String(p.id))}">
               ویرایش
             </button>
 
-            <button class="btn red small" data-archive="${p.id}">
+            <button class="btn red small" data-archive="${esc(String(p.id))}">
               بایگانی
             </button>
           `}
         </div>
       </div>
     </article>
-  `).join("");
+  `;
+}
+
+function renderProducts() {
+  const container = $("products");
+  if (!container) return;
+
+  const query = ($("search")?.value || "").trim().toLowerCase();
+
+  const list = activeProducts().filter(p => {
+    const text = [
+      p.name,
+      p.tag,
+      p.brand,
+      p.category
+    ].join(" ").toLowerCase();
+
+    return text.includes(query);
+  });
+
+  if (!list.length) {
+    container.innerHTML = `
+      <div class="empty">
+        محصولی پیدا نشد.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = list.map(createProductCard).join("");
+}
+
+// ---------------- صفحه دسته‌بندی‌ها ----------------
+
+function getCategoryNames() {
+  const names = options
+    .filter(o => o.option_type === "category")
+    .map(o => String(o.option_name || "").trim())
+    .filter(Boolean);
+
+  // اگر هنوز دسته‌ای در تنظیمات ثبت نشده باشد،
+  // دسته‌های موجود در محصولات هم نمایش داده می‌شوند.
+  activeProducts().forEach(product => {
+    const category = String(product.category || "").trim();
+
+    if (category && !names.some(
+      name => name.toLowerCase() === category.toLowerCase()
+    )) {
+      names.push(category);
+    }
+  });
+
+  return [...new Set(names)];
+}
+
+function renderCategoriesPage() {
+  const cards = $("categoryCards");
+  const container = $("categoryProducts");
+
+  if (!cards || !container) return;
+
+  const categoryNames = getCategoryNames();
+  const filter = $("categoryFilter");
+
+  const previousValue = filter?.value || "";
+
+  if (filter) {
+    filter.innerHTML = `
+      <option value="">همه دسته‌بندی‌ها</option>
+      ${categoryNames.map(name => `
+        <option value="${esc(name)}">${esc(name)}</option>
+      `).join("")}
+    `;
+
+    const exists = categoryNames.some(
+      name => name === previousValue
+    );
+
+    filter.value = exists ? previousValue : "";
+  }
+
+  const selectedCategory = filter?.value || "";
+
+  if (!categoryNames.length) {
+    cards.innerHTML = `
+      <div class="empty">
+        هنوز دسته‌بندی‌ای ثبت نشده است.
+        از قسمت مدیریت گزینه‌ها یک دسته‌بندی اضافه کن.
+      </div>
+    `;
+  } else {
+    cards.innerHTML = categoryNames.map(name => {
+      const count = activeProducts().filter(product =>
+        String(product.category || "").trim() === name
+      ).length;
+
+      const selected = selectedCategory === name;
+
+      return `
+        <button
+          type="button"
+          class="category-card ${selected ? "active" : ""}"
+          data-category="${esc(name)}"
+        >
+          <strong>${esc(name)}</strong>
+          <span>${money(count)} محصول</span>
+        </button>
+      `;
+    }).join("");
+  }
+
+  const filteredProducts = selectedCategory
+    ? activeProducts().filter(product =>
+        String(product.category || "").trim() === selectedCategory
+      )
+    : activeProducts();
+
+  if ($("selectedCategoryTitle")) {
+    $("selectedCategoryTitle").textContent =
+      selectedCategory || "همه محصولات";
+  }
+
+  if (!filteredProducts.length) {
+    container.innerHTML = `
+      <div class="empty">
+        ${selectedCategory
+          ? "در این دسته‌بندی محصولی ثبت نشده است."
+          : "هنوز محصولی ثبت نشده است."}
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = filteredProducts
+    .map(createProductCard)
+    .join("");
+}
+
+// ---------------- فرم محصول ----------------
+
+function ensurePhotoPreview() {
+  const photoInput = $("photo");
+  if (!photoInput) return null;
+
+  let preview = $("photoPreview");
+
+  if (!preview) {
+    preview = document.createElement("div");
+    preview.id = "photoPreview";
+    preview.style.marginTop = "12px";
+    preview.style.display = "flex";
+    preview.style.alignItems = "center";
+    preview.style.gap = "10px";
+
+    photoInput.insertAdjacentElement("afterend", preview);
+  }
+
+  return preview;
 }
 
 function openProductForm(product = null) {
@@ -603,10 +750,18 @@ function openProductForm(product = null) {
   const photoInput = $("photo");
   if (photoInput) photoInput.value = "";
 
-  const preview = $("photoPreview");
+  const preview = ensurePhotoPreview();
+
   if (preview) {
     preview.innerHTML = product?.image_path
-      ? `<img src="${esc(product.image_path)}" alt="عکس محصول" style="max-width:120px;max-height:120px;object-fit:contain">`
+      ? `
+        <img
+          src="${esc(product.image_path)}"
+          alt="عکس محصول"
+          style="max-width:120px;max-height:120px;object-fit:contain;border-radius:10px"
+        >
+        <span class="meta">عکس فعلی محصول</span>
+      `
       : "";
   }
 
@@ -617,12 +772,14 @@ function closeProductForm() {
   $("productModal").classList.remove("show");
 }
 
-// پیش‌نمایش عکس قبل از ذخیره
+// ---------------- پیش‌نمایش عکس ----------------
 
 if ($("photo")) {
+  ensurePhotoPreview();
+
   $("photo").addEventListener("change", event => {
     const file = event.target.files?.[0];
-    const preview = $("photoPreview");
+    const preview = ensurePhotoPreview();
 
     if (!preview) return;
 
@@ -652,14 +809,17 @@ if ($("photo")) {
         <img
           src="${reader.result}"
           alt="پیش‌نمایش عکس"
-          style="max-width:120px;max-height:120px;object-fit:contain"
+          style="max-width:120px;max-height:120px;object-fit:contain;border-radius:10px"
         >
+        <span class="meta">پیش‌نمایش عکس جدید</span>
       `;
     };
 
     reader.readAsDataURL(file);
   });
 }
+
+// ---------------- ذخیره محصول ----------------
 
 async function saveProduct(event) {
   event.preventDefault();
@@ -719,7 +879,6 @@ async function saveProduct(event) {
       : "در حال ذخیره محصول..."
     );
 
-    // اگر عکس جدید انتخاب شده باشد، ابتدا آپلود می‌شود.
     if (photoFile) {
       const photoUrl = await uploadProductPhoto(photoFile);
       payload.image_path = photoUrl;
@@ -728,8 +887,6 @@ async function saveProduct(event) {
     let result;
 
     if (id) {
-      // در ویرایش، اگر عکس جدید انتخاب نشده باشد،
-      // image_path قبلی تغییر نمی‌کند.
       result = await supabase
         .from("inventory_products")
         .update(payload)
@@ -751,6 +908,7 @@ async function saveProduct(event) {
 
     await loadProducts();
     renderDashboard();
+    renderCategoriesPage();
 
     closeProductForm();
 
@@ -761,6 +919,8 @@ async function saveProduct(event) {
     if (submitButton) submitButton.disabled = false;
   }
 }
+
+// ---------------- بایگانی محصولات ----------------
 
 async function archiveProduct(id) {
   if (offlineMode || !navigator.onLine) {
@@ -831,7 +991,7 @@ function renderArchive() {
 
         ${offlineMode ? "" : `
           <div class="product-actions">
-            <button class="btn small" data-restore="${p.id}">
+            <button class="btn small" data-restore="${esc(String(p.id))}">
               بازگردانی
             </button>
           </div>
@@ -1176,6 +1336,7 @@ async function saveRate() {
   dirhamRate = rate;
   renderProducts();
   renderDashboard();
+  renderCategoriesPage();
 
   alert("نرخ درهم ذخیره شد.");
 }
@@ -1186,12 +1347,17 @@ function renderOptionSelects() {
   const brands = options.filter(o => o.option_type === "brand");
   const categories = options.filter(o => o.option_type === "category");
 
+  const oldBrand = $("brand")?.value || "";
+  const oldCategory = $("category")?.value || "";
+
   if ($("brand")) {
     $("brand").innerHTML =
       '<option value="">انتخاب برند</option>' +
       brands.map(o =>
         `<option value="${esc(o.option_name)}">${esc(o.option_name)}</option>`
       ).join("");
+
+    $("brand").value = oldBrand;
   }
 
   if ($("category")) {
@@ -1200,6 +1366,8 @@ function renderOptionSelects() {
       categories.map(o =>
         `<option value="${esc(o.option_name)}">${esc(o.option_name)}</option>`
       ).join("");
+
+    $("category").value = oldCategory;
   }
 }
 
@@ -1211,7 +1379,7 @@ function renderOptionLists() {
     $("brandOptions").innerHTML = brands.map(o => `
       <div class="option-row">
         <span>${esc(o.option_name)}</span>
-        <button class="btn red small" data-delete-option="${o.id}">حذف</button>
+        <button class="btn red small" data-delete-option="${esc(String(o.id))}">حذف</button>
       </div>
     `).join("");
   }
@@ -1220,7 +1388,7 @@ function renderOptionLists() {
     $("categoryOptions").innerHTML = categories.map(o => `
       <div class="option-row">
         <span>${esc(o.option_name)}</span>
-        <button class="btn red small" data-delete-option="${o.id}">حذف</button>
+        <button class="btn red small" data-delete-option="${esc(String(o.id))}">حذف</button>
       </div>
     `).join("");
   }
@@ -1327,7 +1495,9 @@ $("cancelEdit").addEventListener("click", closeProductForm);
 
 $("saveRate").addEventListener("click", saveRate);
 
-$("dailyDate").value = today();
+if ($("dailyDate")) {
+  $("dailyDate").value = today();
+}
 
 $("dailyFilter").addEventListener("click", renderDaily);
 
@@ -1382,6 +1552,22 @@ $("addBrand").addEventListener("click", () => addOption("brand"));
 
 $("addCategory").addEventListener("click", () => addOption("category"));
 
+// فیلتر دسته‌بندی‌ها
+if ($("categoryFilter")) {
+  $("categoryFilter").addEventListener("change", renderCategoriesPage);
+}
+
+// نمایش همه دسته‌بندی‌ها
+if ($("showAllCategories")) {
+  $("showAllCategories").addEventListener("click", () => {
+    if ($("categoryFilter")) {
+      $("categoryFilter").value = "";
+    }
+
+    renderCategoriesPage();
+  });
+}
+
 document.addEventListener("click", async event => {
   const target = event.target;
 
@@ -1389,6 +1575,18 @@ document.addEventListener("click", async event => {
   if (nav) {
     event.preventDefault();
     showPage(nav.dataset.page);
+    return;
+  }
+
+  const categoryButton = target.closest("[data-category]");
+  if (categoryButton) {
+    const categoryName = categoryButton.dataset.category;
+
+    if ($("categoryFilter")) {
+      $("categoryFilter").value = categoryName;
+    }
+
+    renderCategoriesPage();
     return;
   }
 
