@@ -11,6 +11,8 @@ const ALLOWED_EMAILS = [
 
 const OFFLINE_PRODUCTS_KEY = "inventory_offline_products";
 const OFFLINE_USER_KEY = "inventory_offline_user";
+const PHOTO_BUCKET = "inventory-photos";
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
 
 let currentUser = null;
 let products = [];
@@ -18,6 +20,8 @@ let sales = [];
 let options = [];
 let dirhamRate = 0;
 let offlineMode = false;
+let selectedPhotoFile = null;
+let photoPreviewUrl = null;
 
 const $ = id => document.getElementById(id);
 
@@ -142,6 +146,108 @@ function showMessage(id, message) {
   if ($(id)) $(id).textContent = message;
 }
 
+function productImage(product) {
+  if (!product?.image_path) return "";
+
+  if (/^https?:\/\//i.test(product.image_path)) {
+    return product.image_path;
+  }
+
+  const { data } = supabase.storage
+    .from(PHOTO_BUCKET)
+    .getPublicUrl(product.image_path);
+
+  return data?.publicUrl || "";
+}
+
+async function uploadProductPhoto(file) {
+  if (!file) return null;
+
+  if (!file.type.startsWith("image/")) {
+    throw new Error("فایل انتخاب‌شده باید عکس باشد.");
+  }
+
+  if (file.size > MAX_PHOTO_SIZE) {
+    throw new Error("حجم عکس نباید بیشتر از ۵ مگابایت باشد.");
+  }
+
+  const extension = (file.name.split(".").pop() || "jpg")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+  const path = `${currentUser.id}/${crypto.randomUUID()}.${extension || "jpg"}`;
+
+  const { error } = await supabase.storage
+    .from(PHOTO_BUCKET)
+    .upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type
+    });
+
+  if (error) {
+    throw new Error("آپلود عکس ناموفق بود: " + error.message);
+  }
+
+  return path;
+}
+
+function clearPhotoPreview() {
+  if (photoPreviewUrl) {
+    URL.revokeObjectURL(photoPreviewUrl);
+    photoPreviewUrl = null;
+  }
+
+  selectedPhotoFile = null;
+
+  if ($("photo")) $("photo").value = "";
+}
+
+function setPhotoPreview(source) {
+  const preview = $("photoPreview");
+  if (!preview) return;
+
+  if (!source) {
+    preview.innerHTML = '<span class="no-img">هنوز عکسی انتخاب نشده است</span>';
+    return;
+  }
+
+  preview.innerHTML = `<img src="${esc(source)}" alt="پیش‌نمایش عکس محصول">`;
+}
+
+function ensurePhotoPreview() {
+  const input = $("photo");
+  if (!input) return;
+
+  input.addEventListener("change", () => {
+    const file = input.files?.[0];
+
+    if (!file) {
+      selectedPhotoFile = null;
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("لطفاً یک فایل عکس انتخاب کن.");
+      input.value = "";
+      return;
+    }
+
+    if (file.size > MAX_PHOTO_SIZE) {
+      alert("حجم عکس نباید بیشتر از ۵ مگابایت باشد.");
+      input.value = "";
+      return;
+    }
+
+    selectedPhotoFile = file;
+
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    photoPreviewUrl = URL.createObjectURL(file);
+
+    setPhotoPreview(photoPreviewUrl);
+  });
+}
+
 function showPage(pageId) {
   document.querySelectorAll(".content .page").forEach(page => {
     page.classList.toggle("hidden", page.id !== pageId);
@@ -228,7 +334,6 @@ async function login() {
 
     currentUser = offlineUser;
     offlineMode = true;
-
     products = getOfflineProducts();
 
     if (!products.length) {
@@ -337,12 +442,10 @@ async function loadProducts() {
 
   if (error) {
     console.error("خطای دریافت محصولات:", error);
-
     products = getOfflineProducts();
     renderProducts();
     renderArchive();
     renderCategoriesPage();
-
     return;
   }
 
@@ -391,9 +494,7 @@ async function loadRate() {
 
   dirhamRate = Number(data?.dirham_rate || 0);
 
-  if ($("rate")) {
-    $("rate").value = dirhamRate || "";
-  }
+  if ($("rate")) $("rate").value = dirhamRate || "";
 }
 
 async function loadOptions() {
@@ -450,8 +551,16 @@ async function refreshAll() {
 // ---------------- نمایش محصولات ----------------
 
 function createProductCard(p) {
+  const image = productImage(p);
+
   return `
     <article class="product">
+      <div class="product-img">
+        ${image
+          ? `<img src="${esc(image)}" alt="${esc(p.name)}" loading="lazy">`
+          : `<div class="no-img">بدون عکس</div>`}
+      </div>
+
       <div class="product-info">
         <h3>${esc(p.name)}</h3>
 
@@ -475,17 +584,9 @@ function createProductCard(p) {
           ${offlineMode ? `
             <span class="meta">نمایش آفلاین</span>
           ` : `
-            <button class="btn small" data-sell="${esc(String(p.id))}">
-              فروش
-            </button>
-
-            <button class="btn dark small" data-edit="${esc(String(p.id))}">
-              ویرایش
-            </button>
-
-            <button class="btn red small" data-archive="${esc(String(p.id))}">
-              بایگانی
-            </button>
+            <button class="btn small" data-sell="${esc(String(p.id))}">فروش</button>
+            <button class="btn dark small" data-edit="${esc(String(p.id))}">ویرایش</button>
+            <button class="btn red small" data-archive="${esc(String(p.id))}">بایگانی</button>
           `}
         </div>
       </div>
@@ -500,22 +601,14 @@ function renderProducts() {
   const query = ($("search")?.value || "").trim().toLowerCase();
 
   const list = activeProducts().filter(p => {
-    const text = [
-      p.name,
-      p.tag,
-      p.brand,
-      p.category
-    ].join(" ").toLowerCase();
+    const text = [p.name, p.tag, p.brand, p.category]
+      .join(" ").toLowerCase();
 
     return text.includes(query);
   });
 
   if (!list.length) {
-    container.innerHTML = `
-      <div class="empty">
-        محصولی پیدا نشد.
-      </div>
-    `;
+    container.innerHTML = '<div class="empty">محصولی پیدا نشد.</div>';
     return;
   }
 
@@ -551,7 +644,6 @@ function renderCategoriesPage() {
 
   const categoryNames = getCategoryNames();
   const filter = $("categoryFilter");
-
   const previousValue = filter?.value || "";
 
   if (filter) {
@@ -562,11 +654,9 @@ function renderCategoriesPage() {
       `).join("")}
     `;
 
-    const exists = categoryNames.some(
-      name => name === previousValue
-    );
-
-    filter.value = exists ? previousValue : "";
+    filter.value = categoryNames.some(name => name === previousValue)
+      ? previousValue
+      : "";
   }
 
   const selectedCategory = filter?.value || "";
@@ -621,9 +711,7 @@ function renderCategoriesPage() {
     return;
   }
 
-  container.innerHTML = filteredProducts
-    .map(createProductCard)
-    .join("");
+  container.innerHTML = filteredProducts.map(createProductCard).join("");
 }
 
 // ---------------- فرم محصول ----------------
@@ -635,6 +723,8 @@ function openProductForm(product = null) {
   }
 
   $("productForm").reset();
+  clearPhotoPreview();
+
   $("pid").value = product?.id || "";
   $("formTitle").textContent = product ? "ویرایش محصول" : "افزودن محصول";
 
@@ -650,13 +740,19 @@ function openProductForm(product = null) {
   $("quantity").value = product?.quantity ?? 1;
   $("description").value = product?.description || "";
 
-  showMessage("formMessage", "");
+  if (product?.image_path) {
+    setPhotoPreview(productImage(product));
+  } else {
+    setPhotoPreview("");
+  }
 
+  showMessage("formMessage", "");
   $("productModal").classList.add("show");
 }
 
 function closeProductForm() {
   $("productModal").classList.remove("show");
+  clearPhotoPreview();
 }
 
 // ---------------- ذخیره محصول ----------------
@@ -701,6 +797,14 @@ async function saveProduct(event) {
 
   try {
     showMessage("formMessage", "در حال ذخیره محصول...");
+
+    const photoInput = $("photo");
+    const photoFile = selectedPhotoFile || photoInput?.files?.[0];
+
+    if (photoFile) {
+      showMessage("formMessage", "در حال آپلود عکس محصول...");
+      payload.image_path = await uploadProductPhoto(photoFile);
+    }
 
     let result;
 
@@ -799,30 +903,40 @@ function renderArchive() {
     return;
   }
 
-  container.innerHTML = list.map(p => `
-    <article class="product">
-      <div class="product-info">
-        <h3>${esc(p.name)}</h3>
-        <div class="meta">
-          ${esc(p.brand || "بدون برند")}
-          ·
-          ${esc(p.category || "بدون دسته‌بندی")}
-          <br>
-          مدل: ${esc(p.tag || "ثبت نشده")}
-        </div>
-        <div class="price">${money(sellingPrice(p))} تومان</div>
-        <div class="stock">موجودی: ${money(p.quantity)}</div>
+  container.innerHTML = list.map(p => {
+    const image = productImage(p);
 
-        ${offlineMode ? "" : `
-          <div class="product-actions">
-            <button class="btn small" data-restore="${esc(String(p.id))}">
-              بازگردانی
-            </button>
+    return `
+      <article class="product">
+        <div class="product-img">
+          ${image
+            ? `<img src="${esc(image)}" alt="${esc(p.name)}" loading="lazy">`
+            : `<div class="no-img">بدون عکس</div>`}
+        </div>
+
+        <div class="product-info">
+          <h3>${esc(p.name)}</h3>
+          <div class="meta">
+            ${esc(p.brand || "بدون برند")}
+            ·
+            ${esc(p.category || "بدون دسته‌بندی")}
+            <br>
+            مدل: ${esc(p.tag || "ثبت نشده")}
           </div>
-        `}
-      </div>
-    </article>
-  `).join("");
+          <div class="price">${money(sellingPrice(p))} تومان</div>
+          <div class="stock">موجودی: ${money(p.quantity)}</div>
+
+          ${offlineMode ? "" : `
+            <div class="product-actions">
+              <button class="btn small" data-restore="${esc(String(p.id))}">
+                بازگردانی
+              </button>
+            </div>
+          `}
+        </div>
+      </article>
+    `;
+  }).join("");
 }
 
 // ---------------- ثبت فروش ----------------
@@ -834,7 +948,6 @@ async function sellProduct(id) {
   }
 
   const product = products.find(p => String(p.id) === String(id));
-
   if (!product) return;
 
   if (Number(product.quantity) < 1) {
@@ -904,10 +1017,7 @@ function groupSales(list, elementId) {
     const name = s.product_name || "کالای نامشخص";
 
     if (!grouped[name]) {
-      grouped[name] = {
-        count: 0,
-        total: 0
-      };
+      grouped[name] = { count: 0, total: 0 };
     }
 
     grouped[name].count++;
@@ -935,9 +1045,7 @@ function renderDaily() {
   const date = $("dailyDate")?.value || today();
   const list = salesForDate(date);
 
-  if ($("dailyCount")) {
-    $("dailyCount").textContent = money(list.length);
-  }
+  if ($("dailyCount")) $("dailyCount").textContent = money(list.length);
 
   if ($("dailyTotal")) {
     $("dailyTotal").textContent =
@@ -958,17 +1066,13 @@ function renderSales() {
 
   const list = sales.filter(s => {
     if (!s.created_at) return false;
-
     const day = localDate(new Date(s.created_at));
-
     return (!from || day >= from) && (!to || day <= to);
   });
 
   const valid = list.filter(s => !s.voided_at);
 
-  if ($("salesCount")) {
-    $("salesCount").textContent = money(valid.length);
-  }
+  if ($("salesCount")) $("salesCount").textContent = money(valid.length);
 
   if ($("salesTotal")) {
     $("salesTotal").textContent =
@@ -992,26 +1096,13 @@ function renderSales() {
       return `
         <tr>
           <td>${esc(s.product_name || "فروش قدیمی")}</td>
-
-          <td>
-            ${s.sale_price == null
-              ? "ثبت نشده"
-              : money(s.sale_price) + " تومان"}
-          </td>
-
-          <td>
-            ${new Date(s.created_at).toLocaleString("fa-IR")}
-          </td>
-
+          <td>${s.sale_price == null ? "ثبت نشده" : money(s.sale_price) + " تومان"}</td>
+          <td>${new Date(s.created_at).toLocaleString("fa-IR")}</td>
           <td>${canceled ? "لغوشده" : "ثبت‌شده"}</td>
-
           <td>
             ${canceled || offlineMode
               ? "—"
-              : `<button class="btn red small"
-                    data-cancel="${esc(String(s.event_id))}">
-                    لغو فروش
-                 </button>`}
+              : `<button class="btn red small" data-cancel="${esc(String(s.event_id))}">لغو فروش</button>`}
           </td>
         </tr>
       `;
@@ -1024,11 +1115,7 @@ function renderSales() {
 
   valid.forEach(s => {
     const name = s.product_name || "کالای نامشخص";
-
-    if (!grouped[name]) {
-      grouped[name] = { name, count: 0, total: 0 };
-    }
-
+    if (!grouped[name]) grouped[name] = { name, count: 0, total: 0 };
     grouped[name].count++;
     grouped[name].total += Number(s.sale_price || 0);
   });
@@ -1069,9 +1156,7 @@ function renderSales() {
 function renderDashboard() {
   const active = activeProducts();
 
-  if ($("statProducts")) {
-    $("statProducts").textContent = money(active.length);
-  }
+  if ($("statProducts")) $("statProducts").textContent = money(active.length);
 
   if ($("statStock")) {
     $("statStock").textContent = money(
@@ -1088,9 +1173,7 @@ function renderDashboard() {
 
   const validSales = sales.filter(s => !s.voided_at);
 
-  if ($("statSales")) {
-    $("statSales").textContent = money(validSales.length);
-  }
+  if ($("statSales")) $("statSales").textContent = money(validSales.length);
 
   const grouped = {};
 
@@ -1180,7 +1263,6 @@ function renderOptionSelects() {
       brands.map(o =>
         `<option value="${esc(o.option_name)}">${esc(o.option_name)}</option>`
       ).join("");
-
     $("brand").value = oldBrand;
   }
 
@@ -1190,7 +1272,6 @@ function renderOptionSelects() {
       categories.map(o =>
         `<option value="${esc(o.option_name)}">${esc(o.option_name)}</option>`
       ).join("");
-
     $("category").value = oldCategory;
   }
 }
@@ -1271,7 +1352,6 @@ async function addOption(type) {
 
   input.value = "";
   showMessage("optionsMessage", "با موفقیت ثبت شد.");
-
   await loadOptions();
 }
 
@@ -1305,13 +1385,9 @@ $("password").addEventListener("keydown", e => {
 });
 
 $("logout").addEventListener("click", logout);
-
 $("search").addEventListener("input", renderProducts);
-
 $("addProductBtn").addEventListener("click", () => openProductForm());
-
 $("sync").addEventListener("click", refreshAll);
-
 $("productForm").addEventListener("submit", saveProduct);
 
 $("closeProductModal").addEventListener("click", closeProductForm);
@@ -1319,29 +1395,25 @@ $("cancelEdit").addEventListener("click", closeProductForm);
 
 $("saveRate").addEventListener("click", saveRate);
 
-if ($("dailyDate")) {
-  $("dailyDate").value = today();
-}
+ensurePhotoPreview();
+
+if ($("dailyDate")) $("dailyDate").value = today();
 
 $("dailyFilter").addEventListener("click", renderDaily);
 
 $("dailyTab").addEventListener("click", () => {
   $("dailyReport").classList.remove("hidden");
   $("ledger").classList.add("hidden");
-
   $("dailyTab").className = "btn";
   $("ledgerTab").className = "btn dark";
-
   renderDaily();
 });
 
 $("ledgerTab").addEventListener("click", () => {
   $("ledger").classList.remove("hidden");
   $("dailyReport").classList.add("hidden");
-
   $("ledgerTab").className = "btn";
   $("dailyTab").className = "btn dark";
-
   renderSales();
 });
 
@@ -1373,7 +1445,6 @@ $("closeOptions").addEventListener("click", () => {
 });
 
 $("addBrand").addEventListener("click", () => addOption("brand"));
-
 $("addCategory").addEventListener("click", () => addOption("category"));
 
 if ($("categoryFilter")) {
@@ -1382,10 +1453,7 @@ if ($("categoryFilter")) {
 
 if ($("showAllCategories")) {
   $("showAllCategories").addEventListener("click", () => {
-    if ($("categoryFilter")) {
-      $("categoryFilter").value = "";
-    }
-
+    if ($("categoryFilter")) $("categoryFilter").value = "";
     renderCategoriesPage();
   });
 }
@@ -1402,12 +1470,9 @@ document.addEventListener("click", async event => {
 
   const categoryButton = target.closest("[data-category]");
   if (categoryButton) {
-    const categoryName = categoryButton.dataset.category;
-
     if ($("categoryFilter")) {
-      $("categoryFilter").value = categoryName;
+      $("categoryFilter").value = categoryButton.dataset.category;
     }
-
     renderCategoriesPage();
     return;
   }
