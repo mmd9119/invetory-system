@@ -180,16 +180,6 @@ box-shadow:0 9px 24px #0003;
 .product{overflow:hidden;transition:.22s;animation:enter .35s both}
 .product:hover{transform:translateY(-4px);border-color:var(--gold)}
 
-.product-img{
-height:155px;
-background:linear-gradient(145deg,#201b1e,#30272c);
-display:grid;
-place-items:center;
-}
-
-.product-img img{width:100%;height:100%;object-fit:contain}
-.no-img{font-size:40px;color:#ad8c51}
-
 .product-info{padding:13px}
 .product h3{font-size:15px;margin:0 0 5px}
 .meta{font-size:11px;color:var(--muted);line-height:2}
@@ -277,8 +267,6 @@ margin-bottom:17px;
 .option-row span{flex:1}
 .hidden{display:none!important}
 
-/* گزارش پرفروش ترین کالا */
-
 .top-seller-box{
 background:linear-gradient(145deg,#342b30,#252025);
 border:1px solid var(--gold);
@@ -310,8 +298,6 @@ min-width:0;
 .top-seller-box h4{color:#fff5e6;margin:20px 0 12px}
 #topSellerRanking .option-row{border-bottom:1px solid #484047;padding:12px 4px}
 #topSellerRanking .option-row:last-child{border-bottom:0}
-
-/* کارت های دسته بندی */
 
 .category-grid{
 display:grid;
@@ -352,18 +338,14 @@ from{opacity:0}
 to{opacity:1}
 }
 
-/* تبلت */
 @media(max-width:1050px){
 .layout{grid-template-columns:190px minmax(0,1fr);gap:13px}
 .products{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.product-img{height:125px}
 .stats{grid-template-columns:repeat(2,1fr)}
 }
 
-/* موبایل */
 @media(max-width:720px){
 .layout{grid-template-columns:1fr;padding:13px}
-
 .sidebar{
 position:static;
 display:grid;
@@ -371,26 +353,19 @@ grid-template-columns:repeat(3,minmax(0,1fr));
 gap:4px;
 padding:7px;
 }
-
 .navbtn{text-align:center;padding:10px 3px;font-size:11px;margin:0}
-
 .products{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-.product-img{height:115px}
 .product-info{padding:9px}
 .product h3{font-size:13px}
 .product-actions{flex-direction:column}
-
 .top{padding:12px}
 .logo{width:48px;height:48px;font-size:35px}
-
 .top-seller-main{grid-template-columns:1fr}
 .category-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 
-/* موبایل کوچک؛ همچنان دو ستون */
 @media(max-width:380px){
 .products{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
-.product-img{height:95px}
 .product-info{padding:7px}
 .product h3{font-size:12px}
 .form-grid{grid-template-columns:1fr}
@@ -409,14 +384,11 @@ padding:7px;
    <p>سامانه هوشمند مدیریت محصولات و فروش</p>
   </div>
  </div>
-
  <div class="top-right">
   <span id="onlineStatus">● آنلاین</span>
   <button class="btn dark small" id="logout">خروج</button>
  </div>
 </header>
-
-<!-- ورود -->
 
 <section id="login" class="modal" style="display:flex">
  <div class="modal-card" style="max-width:390px">
@@ -449,25 +421,18 @@ padding:7px;
 
  <main class="content">
 
-  <!-- محصولات -->
-
   <section class="page" id="productsPage">
    <h2>محصولات فروشگاه</h2>
-
    <div class="toolbar">
     <input id="search" placeholder="جست‌وجوی نام، برند یا مدل کالا...">
     <button class="btn" id="addProductBtn">＋ افزودن کالا</button>
     <button class="btn dark" id="sync">به‌روزرسانی</button>
    </div>
-
    <div class="products" id="products"></div>
   </section>
 
-  <!-- دسته بندی محصولات -->
-
   <section class="page hidden" id="categoriesPage">
    <h2>دسته‌بندی محصولات</h2>
-
    <div class="panel">
     <p class="muted">از این قسمت می‌توانی محصولات هر دسته را جداگانه مشاهده کنی.</p>
     <div class="toolbar">
@@ -477,65 +442,51 @@ padding:7px;
      <button class="btn dark" id="showAllCategories">نمایش همه محصولات</button>
     </div>
    </div>
-
    <div class="category-grid" id="categoryCards"></div>
-
    <div class="panel" style="margin-top:18px">
     <h3 style="color:var(--gold2);margin-top:0" id="selectedCategoryTitle">همه محصولات</h3>
     <div class="products" id="categoryProducts"></div>
    </div>
   </section>
 
-  <!-- داشبورد -->
-
   <section class="page hidden" id="dashboardPage">
    <h2>داشبورد مدیریتی</h2>
-
    <div class="stats">
     <div class="stat"><span>تعداد کالاها</span><strong id="statProducts">۰</strong></div>
     <div class="stat"><span>مجموع موجودی</span><strong id="statStock">۰</strong></div>
     <div class="stat"><span>ارزش تقریبی خرید انبار</span><strong id="statValue">۰</strong></div>
     <div class="stat"><span>تعداد فروش معتبر</span><strong id="statSales">۰</strong></div>
    </div>
-
    <div class="panel ratebar">
     <label>نرخ روز درهم</label>
     <input id="rate" inputmode="numeric" placeholder="نرخ درهم">
     <button class="btn" id="saveRate">ثبت نرخ</button>
    </div>
-
    <div class="panel">
     <h3 style="color:var(--gold2);margin-top:0">پرفروش‌ترین کالاها</h3>
     <div id="dashboardTop"></div>
    </div>
-
    <div class="panel">
     <button class="btn dark" id="manageOptionsBtn">مدیریت برندها و دسته‌بندی‌ها</button>
    </div>
   </section>
 
-  <!-- دفتر فروش -->
-
   <section class="page hidden" id="salesPage">
    <h2>دفتر فروش</h2>
-
    <div class="tabs" style="display:flex;gap:8px;margin-bottom:15px">
     <button class="btn" id="dailyTab">گزارش روزانه</button>
     <button class="btn dark" id="ledgerTab">سابقه فروش</button>
    </div>
-
    <div id="dailyReport">
     <div class="toolbar">
      <label class="muted">انتخاب روز</label>
      <input type="date" id="dailyDate" style="max-width:190px">
      <button class="btn" id="dailyFilter">نمایش گزارش</button>
     </div>
-
     <div class="stats">
      <div class="stat"><span>تعداد فروش روز</span><strong id="dailyCount">۰</strong></div>
      <div class="stat"><span>مبلغ فروش روز</span><strong id="dailyTotal">۰</strong></div>
     </div>
-
     <div class="panel">
      <h3 style="color:var(--gold2)">فروش به تفکیک کالا</h3>
      <div id="dailyGroups"></div>
@@ -543,78 +494,43 @@ padding:7px;
    </div>
 
    <div id="ledger" class="hidden">
-
     <div class="toolbar">
      <label class="muted">از</label>
      <input type="date" id="salesFrom" style="max-width:160px">
-
      <label class="muted">تا</label>
      <input type="date" id="salesTo" style="max-width:160px">
-
      <button class="btn" id="filterSales">فیلتر</button>
     </div>
-
     <div class="stats">
-     <div class="stat">
-      <span>تعداد فروش معتبر</span>
-      <strong id="salesCount">۰</strong>
-     </div>
-     <div class="stat">
-      <span>مبلغ کل فروش</span>
-      <strong id="salesTotal">۰</strong>
-     </div>
+     <div class="stat"><span>تعداد فروش معتبر</span><strong id="salesCount">۰</strong></div>
+     <div class="stat"><span>مبلغ کل فروش</span><strong id="salesTotal">۰</strong></div>
     </div>
-
     <div class="top-seller-box">
      <h3>🏆 پرفروش‌ترین کالا در بازه انتخابی</h3>
-
      <div class="top-seller-main">
-      <div>
-       <span>نام پرفروش‌ترین کالا</span>
-       <h2 id="topSellerName">هنوز فروشی ثبت نشده</h2>
-      </div>
-
-      <div>
-       <span>تعداد فروش</span>
-       <h2 id="topSellerCount">۰ عدد</h2>
-      </div>
-
-      <div>
-       <span>مجموع مبلغ فروش</span>
-       <h2 id="topSellerTotal">۰ تومان</h2>
-      </div>
+      <div><span>نام پرفروش‌ترین کالا</span><h2 id="topSellerName">هنوز فروشی ثبت نشده</h2></div>
+      <div><span>تعداد فروش</span><h2 id="topSellerCount">۰ عدد</h2></div>
+      <div><span>مجموع مبلغ فروش</span><h2 id="topSellerTotal">۰ تومان</h2></div>
      </div>
-
      <h4>رتبه‌بندی کالاهای پرفروش</h4>
      <div id="topSellerRanking">
       <div class="empty">برای مشاهده گزارش، بازه تاریخ را انتخاب کن.</div>
      </div>
     </div>
-
     <div class="panel table-wrap">
      <table>
       <thead>
-       <tr>
-        <th>کالا</th>
-        <th>قیمت</th>
-        <th>تاریخ</th>
-        <th>وضعیت</th>
-        <th>عملیات</th>
-       </tr>
+       <tr><th>کالا</th><th>قیمت</th><th>تاریخ</th><th>وضعیت</th><th>عملیات</th></tr>
       </thead>
       <tbody id="salesRows"></tbody>
      </table>
     </div>
-
     <div class="panel">
      <h3 style="color:var(--gold2)">فروش به تفکیک کالا</h3>
      <div id="salesByProduct"></div>
     </div>
-
    </div>
   </section>
-
-  <!-- بایگانی -->
 
   <section class="page hidden" id="archivePage">
    <h2>بایگانی کالاها</h2>
@@ -624,45 +540,31 @@ padding:7px;
  </main>
 </div>
 
-<!-- پنجره محصول -->
-
 <div class="modal" id="productModal">
  <div class="modal-card">
-
   <div class="modal-head">
    <h2 id="formTitle">افزودن محصول</h2>
    <button class="close" id="closeProductModal">✕</button>
   </div>
-
   <form id="productForm">
    <input type="hidden" id="pid">
-
    <div class="form-grid">
-
     <div class="field">
      <label>نام محصول</label>
      <input id="name" required>
     </div>
-
     <div class="field">
      <label>دسته‌بندی</label>
-     <select id="category">
-      <option value="">انتخاب دسته‌بندی</option>
-     </select>
+     <select id="category"><option value="">انتخاب دسته‌بندی</option></select>
     </div>
-
     <div class="field">
      <label>برند</label>
-     <select id="brand">
-      <option value="">انتخاب برند</option>
-     </select>
+     <select id="brand"><option value="">انتخاب برند</option></select>
     </div>
-
     <div class="field">
      <label>مدل / تگ</label>
      <input id="tag">
     </div>
-
     <div class="field">
      <label>نوع خرید</label>
      <select id="purchaseType">
@@ -670,17 +572,14 @@ padding:7px;
       <option value="dirham">درهمی</option>
      </select>
     </div>
-
     <div class="field">
      <label>قیمت خرید</label>
      <input id="buyPrice" inputmode="numeric" required>
     </div>
-
     <div class="field">
      <label>کرایه (تومان)</label>
      <input id="freight" inputmode="numeric" value="0">
     </div>
-
     <div class="field">
      <label>نوع سود</label>
      <select id="profitType">
@@ -688,75 +587,53 @@ padding:7px;
       <option value="percent">درصدی</option>
      </select>
     </div>
-
     <div class="field">
      <label>مقدار سود</label>
      <input id="profitValue" inputmode="numeric" value="0">
     </div>
-
     <div class="field">
      <label>تعداد</label>
      <input id="quantity" type="number" min="0" value="1" required>
     </div>
-
-    <div class="field">
-     <label>عکس محصول</label>
-     <input id="photo" type="file" accept="image/*">
-    </div>
-
     <div class="field full">
      <label>توضیحات</label>
      <textarea id="description" rows="3"></textarea>
     </div>
-
    </div>
-
    <div class="message" id="formMessage"></div>
-
    <div class="form-actions">
     <button class="btn" type="submit">ذخیره محصول</button>
     <button class="btn dark" type="button" id="cancelEdit">انصراف</button>
    </div>
-
   </form>
  </div>
 </div>
 
-<!-- پنجره مدیریت برندها و دسته بندی ها -->
-
 <div class="modal" id="optionsModal">
  <div class="modal-card">
-
   <div class="modal-head">
    <h2>مدیریت برندها و دسته‌بندی‌ها</h2>
    <button class="close" id="closeOptions">✕</button>
   </div>
-
   <div class="form-grid">
-
    <div class="field">
     <label>افزودن برند</label>
     <input id="newBrand" placeholder="مثلاً گرین لاین">
     <button class="btn" id="addBrand" style="width:100%;margin-top:8px">افزودن برند</button>
     <div id="brandOptions"></div>
    </div>
-
    <div class="field">
     <label>افزودن دسته‌بندی</label>
     <input id="newCategory" placeholder="مثلاً لوازم جانبی">
     <button class="btn" id="addCategory" style="width:100%;margin-top:8px">افزودن دسته‌بندی</button>
     <div id="categoryOptions"></div>
    </div>
-
   </div>
-
   <div class="message" id="optionsMessage"></div>
-
  </div>
 </div>
 
 <script type="module" src="./app.js"></script>
-
 <script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -765,6 +642,5 @@ if ("serviceWorker" in navigator) {
   });
 }
 </script>
-
 </body>
 </html>
