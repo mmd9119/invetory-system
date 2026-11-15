@@ -11,6 +11,8 @@ const ALLOWED_EMAILS = [
 
 const OFFLINE_PRODUCTS_KEY = "inventory_offline_products";
 const OFFLINE_USER_KEY = "inventory_offline_user";
+const PHOTO_BUCKET = "inventory-photos";
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
 
 let currentUser = null;
 let products = [];
@@ -181,7 +183,14 @@ function productImage(product) {
     return '<div class="no-img">▧</div>';
   }
 
-  return `<img src="${esc(product.image_path)}" alt="${esc(product.name)}">`;
+  return `
+    <img
+      src="${esc(product.image_path)}"
+      alt="${esc(product.name)}"
+      loading="lazy"
+      onerror="this.style.display='none'"
+    >
+  `;
 }
 
 function activeProducts() {
@@ -397,7 +406,6 @@ async function loadRate() {
   }
 }
 
-// اصلاح‌شده: استفاده از option_name
 async function loadOptions() {
   if (!navigator.onLine || offlineMode) return;
 
@@ -439,6 +447,58 @@ async function refreshAll() {
   renderDashboard();
   renderSales();
   renderArchive();
+}
+
+// ---------------- آپلود عکس محصول ----------------
+
+async function uploadProductPhoto(file) {
+  if (!file) return null;
+
+  if (!currentUser?.id) {
+    throw new Error("کاربر واردشده شناسایی نشد.");
+  }
+
+  if (!file.type.startsWith("image/")) {
+    throw new Error("فایل انتخاب‌شده تصویر نیست.");
+  }
+
+  if (file.size > MAX_PHOTO_SIZE) {
+    throw new Error("حجم عکس نباید بیشتر از ۵ مگابایت باشد.");
+  }
+
+  const originalExtension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+
+  const allowedExtensions = [
+    "jpg", "jpeg", "png", "webp", "gif", "heic"
+  ];
+
+  const extension = allowedExtensions.includes(originalExtension)
+    ? originalExtension
+    : "jpg";
+
+  const filePath = `${currentUser.id}/${crypto.randomUUID()}.${extension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(PHOTO_BUCKET)
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      contentType: file.type,
+      upsert: false
+    });
+
+  if (uploadError) {
+    throw new Error("آپلود عکس ناموفق بود: " + uploadError.message);
+  }
+
+  const { data } = supabase.storage
+    .from(PHOTO_BUCKET)
+    .getPublicUrl(filePath);
+
+  if (!data?.publicUrl) {
+    throw new Error("آدرس عمومی عکس ساخته نشد.");
+  }
+
+  return data.publicUrl;
 }
 
 // ---------------- محصولات ----------------
@@ -539,11 +599,66 @@ function openProductForm(product = null) {
   $("description").value = product?.description || "";
 
   showMessage("formMessage", "");
+
+  const photoInput = $("photo");
+  if (photoInput) photoInput.value = "";
+
+  const preview = $("photoPreview");
+  if (preview) {
+    preview.innerHTML = product?.image_path
+      ? `<img src="${esc(product.image_path)}" alt="عکس محصول" style="max-width:120px;max-height:120px;object-fit:contain">`
+      : "";
+  }
+
   $("productModal").classList.add("show");
 }
 
 function closeProductForm() {
   $("productModal").classList.remove("show");
+}
+
+// پیش‌نمایش عکس قبل از ذخیره
+
+if ($("photo")) {
+  $("photo").addEventListener("change", event => {
+    const file = event.target.files?.[0];
+    const preview = $("photoPreview");
+
+    if (!preview) return;
+
+    if (!file) {
+      preview.innerHTML = "";
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("لطفاً یک فایل تصویری انتخاب کن.");
+      event.target.value = "";
+      preview.innerHTML = "";
+      return;
+    }
+
+    if (file.size > MAX_PHOTO_SIZE) {
+      alert("حجم عکس نباید بیشتر از ۵ مگابایت باشد.");
+      event.target.value = "";
+      preview.innerHTML = "";
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      preview.innerHTML = `
+        <img
+          src="${reader.result}"
+          alt="پیش‌نمایش عکس"
+          style="max-width:120px;max-height:120px;object-fit:contain"
+        >
+      `;
+    };
+
+    reader.readAsDataURL(file);
+  });
 }
 
 async function saveProduct(event) {
@@ -555,6 +670,9 @@ async function saveProduct(event) {
   }
 
   const id = $("pid").value;
+  const photoInput = $("photo");
+  const photoFile = photoInput?.files?.[0] || null;
+  const submitButton = $("productForm").querySelector('[type="submit"]');
 
   const payload = {
     name: $("name").value.trim(),
@@ -581,32 +699,67 @@ async function saveProduct(event) {
     return;
   }
 
-  showMessage("formMessage", "در حال ذخیره...");
+  if (photoFile) {
+    if (!photoFile.type.startsWith("image/")) {
+      showMessage("formMessage", "فایل انتخاب‌شده تصویر نیست.");
+      return;
+    }
 
-  let result;
-
-  if (id) {
-    result = await supabase
-      .from("inventory_products")
-      .update(payload)
-      .eq("id", id);
-  } else {
-    payload.user_id = currentUser.id;
-    payload.is_active = true;
-
-    result = await supabase
-      .from("inventory_products")
-      .insert(payload);
+    if (photoFile.size > MAX_PHOTO_SIZE) {
+      showMessage("formMessage", "حجم عکس نباید بیشتر از ۵ مگابایت باشد.");
+      return;
+    }
   }
 
-  if (result.error) {
-    showMessage("formMessage", "خطا: " + result.error.message);
-    return;
-  }
+  if (submitButton) submitButton.disabled = true;
 
-  closeProductForm();
-  await loadProducts();
-  renderDashboard();
+  try {
+    showMessage("formMessage", photoFile
+      ? "در حال آپلود عکس و ذخیره محصول..."
+      : "در حال ذخیره محصول..."
+    );
+
+    // اگر عکس جدید انتخاب شده باشد، ابتدا آپلود می‌شود.
+    if (photoFile) {
+      const photoUrl = await uploadProductPhoto(photoFile);
+      payload.image_path = photoUrl;
+    }
+
+    let result;
+
+    if (id) {
+      // در ویرایش، اگر عکس جدید انتخاب نشده باشد،
+      // image_path قبلی تغییر نمی‌کند.
+      result = await supabase
+        .from("inventory_products")
+        .update(payload)
+        .eq("id", id);
+    } else {
+      payload.user_id = currentUser.id;
+      payload.is_active = true;
+
+      result = await supabase
+        .from("inventory_products")
+        .insert(payload);
+    }
+
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    showMessage("formMessage", "محصول با موفقیت ذخیره شد.");
+
+    await loadProducts();
+    renderDashboard();
+
+    closeProductForm();
+
+  } catch (error) {
+    console.error("خطای ذخیره محصول:", error);
+    showMessage("formMessage", "خطا: " + error.message);
+  } finally {
+    if (submitButton) submitButton.disabled = false;
+  }
 }
 
 async function archiveProduct(id) {
@@ -1028,8 +1181,6 @@ async function saveRate() {
 }
 
 // ---------------- برندها و دسته‌بندی‌ها ----------------
-
-// استفاده از ستون اصلی option_name در دیتابیس
 
 function renderOptionSelects() {
   const brands = options.filter(o => o.option_type === "brand");
