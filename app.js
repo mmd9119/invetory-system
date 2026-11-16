@@ -4,11 +4,6 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const ALLOWED_EMAILS = [
-  "mmdowhe@gmail.com",
-  "hossein5khezri@gmail.com"
-];
-
 const OFFLINE_PRODUCTS_KEY = "inventory_offline_products";
 const OFFLINE_USER_KEY = "inventory_offline_user";
 const PHOTO_BUCKET = "inventory-photos";
@@ -306,8 +301,8 @@ async function login() {
   const email = $("email").value.trim().toLowerCase();
   const password = $("password").value;
 
-  if (!ALLOWED_EMAILS.includes(email)) {
-    showMessage("message", "این ایمیل اجازه ورود ندارد.");
+  if (!email || !email.includes("@")) {
+    showMessage("message", "ایمیل معتبر وارد کن.");
     return;
   }
 
@@ -413,11 +408,6 @@ async function checkSession() {
   }
 
   currentUser = data.session.user;
-
-  if (!ALLOWED_EMAILS.includes(currentUser.email.toLowerCase())) {
-    await logout();
-    return;
-  }
 
   offlineMode = false;
   await refreshAll();
