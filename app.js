@@ -543,6 +543,11 @@ async function refreshAll() {
 function createProductCard(p) {
   const image = productImage(p);
 
+  // نام محصول و برند در یک خط
+  const productTitle = [p.name, p.brand]
+    .filter(value => String(value || "").trim())
+    .join(" ");
+
   return `
     <article class="product">
       <div class="product-img">
@@ -552,14 +557,14 @@ function createProductCard(p) {
       </div>
 
       <div class="product-info">
-        <h3>${esc(p.name)}</h3>
+        <h3 class="product-title">${esc(productTitle || "بدون نام")}</h3>
 
-        <div class="meta">
-          ${esc(p.brand || "بدون برند")}
-          ·
-          ${esc(p.category || "بدون دسته‌بندی")}
-          <br>
-          مدل: ${esc(p.tag || "ثبت نشده")}
+        <div class="product-model">
+          مدل: ${esc(p.tag || "...")}
+        </div>
+
+        <div class="product-category">
+          دسته‌بندی: ${esc(p.category || "بدون دسته‌بندی")}
         </div>
 
         <div class="price">
@@ -895,6 +900,9 @@ function renderArchive() {
 
   container.innerHTML = list.map(p => {
     const image = productImage(p);
+    const productTitle = [p.name, p.brand]
+      .filter(value => String(value || "").trim())
+      .join(" ");
 
     return `
       <article class="product">
@@ -905,16 +913,23 @@ function renderArchive() {
         </div>
 
         <div class="product-info">
-          <h3>${esc(p.name)}</h3>
-          <div class="meta">
-            ${esc(p.brand || "بدون برند")}
-            ·
-            ${esc(p.category || "بدون دسته‌بندی")}
-            <br>
-            مدل: ${esc(p.tag || "ثبت نشده")}
+          <h3 class="product-title">${esc(productTitle || "بدون نام")}</h3>
+
+          <div class="product-model">
+            مدل: ${esc(p.tag || "...")}
           </div>
-          <div class="price">${money(sellingPrice(p))} تومان</div>
-          <div class="stock">موجودی: ${money(p.quantity)}</div>
+
+          <div class="product-category">
+            دسته‌بندی: ${esc(p.category || "بدون دسته‌بندی")}
+          </div>
+
+          <div class="price">
+            ${money(sellingPrice(p))} تومان
+          </div>
+
+          <div class="stock">
+            موجودی: ${money(p.quantity)}
+          </div>
 
           ${offlineMode ? "" : `
             <div class="product-actions">
