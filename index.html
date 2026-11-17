@@ -232,6 +232,30 @@ object-fit:contain;
 .product-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 .product-actions button{flex:1}
 
+/* ظاهر جدید نام، برند، مدل و دسته‌بندی محصولات */
+.product-title{
+font-size:19px !important;
+font-weight:900;
+color:var(--text);
+line-height:1.8;
+margin:0 0 3px;
+overflow-wrap:anywhere;
+}
+
+.product-model{
+font-size:19px;
+font-weight:900;
+color:var(--gold2);
+line-height:1.8;
+overflow-wrap:anywhere;
+}
+
+.product-category{
+font-size:11px;
+color:var(--muted);
+line-height:2;
+}
+
 .stats{
 display:grid;
 grid-template-columns:repeat(4,minmax(0,1fr));
@@ -413,6 +437,8 @@ padding:7px;
 .products{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
 .product-info{padding:9px}
 .product h3{font-size:13px}
+.product-title{font-size:17px !important}
+.product-model{font-size:17px}
 .product-actions{flex-direction:column}
 .product-img{height:135px}
 .top{padding:12px}
@@ -425,6 +451,8 @@ padding:7px;
 .products{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
 .product-info{padding:7px}
 .product h3{font-size:12px}
+.product-title{font-size:15px !important}
+.product-model{font-size:15px}
 .form-grid{grid-template-columns:1fr}
 .field.full{grid-column:auto}
 }
